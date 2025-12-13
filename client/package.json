@@ -2,10 +2,9 @@
   "name": "tenant-management-client",
   "version": "1.0.0",
   "description": "Frontend for Tenant Management SaaS",
-  "scripts": {
+    "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {

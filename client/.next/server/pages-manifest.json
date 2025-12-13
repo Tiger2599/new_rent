@@ -1,9 +1,1 @@
-{
-  "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
-  "/_document": "pages/_document.js",
-  "/tenants/[id]/ledger": "pages/tenants/[id]/ledger.js",
-  "/dashboard": "pages/dashboard.js",
-  "/tenants": "pages/tenants.js",
-  "/payments": "pages/payments.js"
-}
+{"/_app":"pages/_app.js","/_error":"pages/_error.js","/admin":"pages/admin.html","/dashboard":"pages/dashboard.html","/expenses":"pages/expenses.html","/login":"pages/login.html","/payments":"pages/payments.html","/":"pages/index.html","/properties":"pages/properties.html","/register":"pages/register.html","/reports":"pages/reports.html","/subscription":"pages/subscription.html","/tenants":"pages/tenants.html","/tenants/[id]/ledger":"pages/tenants/[id]/ledger.html","/_document":"pages/_document.js","/404":"pages/404.html"}
