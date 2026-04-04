@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
   try {
     await connectDB();
-    const ownerId = auth.user._id.toString();
+    const ownerId = String(auth.user._id);
     const users = await User.find({ ownerId }).select('-password').sort({ createdAt: -1 }).lean();
     return NextResponse.json({ items: users });
   } catch (e) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   }
   try {
     await connectDB();
-    const ownerId = auth.user._id.toString();
+    const ownerId = String(auth.user._id);
     const body = await request.json();
     const { name, email, password, mobile, role, permissions } = body;
     if (!name || !email || !password) {

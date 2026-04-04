@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
-import { Flat } from '@/lib/models';
+import { Flat, Tenant } from '@/lib/models';
 import { getCurrentUser } from '@/lib/api-auth';
 import { getEffectiveUserId, canAccess } from '@/lib/permissions';
 
@@ -21,11 +21,66 @@ export async function GET(request: Request) {
     if (propertyId) query.propertyId = propertyId;
     const activeOnly = searchParams.get('active');
     if (activeOnly === 'true') (query as Record<string, unknown>).isActive = true;
+
+    const vacantOnly = searchParams.get('vacant') === 'true';
+    const includeFlatId = searchParams.get('includeFlatId');
+
+    /** Vacant flats for a property (no active tenant), optional include current flat for edit */
+    if (vacantOnly && propertyId) {
+      const allFlatDocs = await Flat.find(query).sort({ flatNumber: 1 }).lean();
+      const allIds = allFlatDocs.map((f) => f._id);
+      const occupied = await Tenant.find({
+        flatId: { $in: allIds },
+        isActive: true,
+        isDeleted: false,
+      }).distinct('flatId');
+      const occupiedSet = new Set(occupied.map((id) => String(id)));
+      let allowedDocs = allFlatDocs.filter((f) => !occupiedSet.has(String(f._id)));
+      if (includeFlatId) {
+        const inc = allFlatDocs.find((f) => String(f._id) === String(includeFlatId));
+        if (inc && !allowedDocs.some((f) => String(f._id) === String(includeFlatId))) {
+          allowedDocs = [...allowedDocs, inc];
+        }
+      }
+      allowedDocs.sort((a, b) =>
+        String(a.flatNumber).localeCompare(String(b.flatNumber), undefined, { numeric: true })
+      );
+      const idsOrdered = allowedDocs.map((f) => f._id);
+      const populated =
+        idsOrdered.length === 0
+          ? []
+          : await Flat.find({ _id: { $in: idsOrdered } })
+              .populate('propertyId', 'name propertyNumber')
+              .lean();
+      const orderMap = new Map(idsOrdered.map((id, i) => [String(id), i]));
+      populated.sort((a, b) => (orderMap.get(String(a._id)) ?? 0) - (orderMap.get(String(b._id)) ?? 0));
+      const itemsWithOccupancy = (populated as Record<string, unknown>[]).map((f) => ({
+        ...f,
+        hasActiveTenant: occupiedSet.has(String(f._id)),
+      }));
+      return NextResponse.json({
+        items: itemsWithOccupancy,
+        total: itemsWithOccupancy.length,
+        page: 1,
+        limit: itemsWithOccupancy.length,
+      });
+    }
+
     const [items, total] = await Promise.all([
       Flat.find(query).sort({ flatNumber: 1 }).skip(skip).limit(limit).populate('propertyId', 'name propertyNumber').lean(),
       Flat.countDocuments(query),
     ]);
-    return NextResponse.json({ items, total, page, limit });
+    const flatIds = (items as { _id: mongoose.Types.ObjectId }[]).map((f) => f._id);
+    const occupiedFlatIds = await Tenant.find(
+      { flatId: { $in: flatIds }, isActive: true, isDeleted: false },
+      { flatId: 1 }
+    ).distinct('flatId');
+    const occupiedSet = new Set(occupiedFlatIds.map((id) => String(id)));
+    const itemsWithOccupancy = (items as Record<string, unknown>[]).map((f) => ({
+      ...f,
+      hasActiveTenant: occupiedSet.has(String(f._id)),
+    }));
+    return NextResponse.json({ items: itemsWithOccupancy, total, page, limit });
   } catch (e) {
     console.error('Flats list error:', e);
     return NextResponse.json({ error: 'Failed to fetch flats' }, { status: 500 });

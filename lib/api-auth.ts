@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from './db';
 import { User } from './models';
 import { getAuthTokenFromRequest, verifyToken } from './auth';
-export async function getCurrentUser(request: Request): Promise<{ user: { _id: unknown; email: string; name: string; role: string; ownerId?: unknown; permissions?: Record<string, boolean> } } | NextResponse> {
+export async function getCurrentUser(request: Request): Promise<{ user: { _id: unknown; email: string; name: string; mobile?: string; role: string; ownerId?: unknown; permissions?: Record<string, boolean> } } | NextResponse> {
   const token = getAuthTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,7 +19,7 @@ export async function getCurrentUser(request: Request): Promise<{ user: { _id: u
   if (!user) {
     return NextResponse.json({ error: 'User not found' }, { status: 401 });
   }
-  return { user: user as { _id: unknown; email: string; name: string; role: string; ownerId?: unknown; permissions?: Record<string, boolean> } };
+  return { user: user as { _id: unknown; email: string; name: string; mobile?: string; role: string; ownerId?: unknown; permissions?: Record<string, boolean> } };
 }
 
 /** Resolve effective owner ID: for sub-users this is ownerId, for owner it's their _id */

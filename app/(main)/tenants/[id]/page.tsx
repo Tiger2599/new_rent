@@ -26,12 +26,19 @@ export default function TenantDetailPage() {
   const id = params.id as string;
   const [data, setData] = useState<TenantDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [collectingDeposit, setCollectingDeposit] = useState(false);
+  const [depositError, setDepositError] = useState('');
 
-  useEffect(() => {
-    api<TenantDetail>(`/tenants/${id}`)
+  function loadTenant() {
+    return api<TenantDetail>(`/tenants/${id}`)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTenant();
   }, [id]);
 
   async function handleSoftDelete() {
@@ -43,48 +50,104 @@ export default function TenantDetailPage() {
     } catch {}
   }
 
+  async function handleCollectDeposit(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = Number(depositAmount);
+    if (!data || !Number.isFinite(amount) || amount <= 0) {
+      setDepositError('Enter a valid amount.');
+      return;
+    }
+    if (amount > (data.depositPending ?? 0)) {
+      setDepositError('Amount cannot exceed pending deposit.');
+      return;
+    }
+    setDepositError('');
+    setCollectingDeposit(true);
+    try {
+      const newPending = Math.max(0, (data.depositPending ?? 0) - amount);
+      await api(`/tenants/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ depositPending: newPending }),
+      });
+      setDepositAmount('');
+      await loadTenant();
+      router.refresh();
+    } catch {
+      setDepositError('Failed to update. Try again.');
+    } finally {
+      setCollectingDeposit(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-soft border-t-primary" />
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="rounded-lg bg-red-500/10 text-red-400 p-4">
-        Tenant not found. <Link href="/tenants" className="underline">Back to list</Link>
+      <div className="card-soft bg-red-50/80 text-red-700 p-4">
+        Tenant not found. <Link href="/tenants" className="font-medium underline">Back to list</Link>
       </div>
     );
   }
 
   const prop = data.propertyId as { name: string };
   const flat = data.flatId as { flatNumber: string };
+  const pending = data.depositPending ?? 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">{data.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-ink">{data.name}</h1>
         <div className="flex gap-2">
-          <Link href={`/tenants/${id}/edit`} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800">Edit</Link>
-          <button onClick={handleSoftDelete} className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30">Soft Delete</button>
+          <Link href={`/tenants/${id}/edit`} className="btn-pill bg-slate-50 text-ink hover:bg-slate-100 font-medium">Edit</Link>
+          <button onClick={handleSoftDelete} className="btn-pill bg-red-50 text-red-600 hover:bg-red-100 font-medium">Soft Delete</button>
         </div>
       </div>
 
-      <div className="rounded-xl bg-slate-900 border border-slate-700 p-6 space-y-4">
-        <p><span className="text-slate-500">Mobile:</span> <span className="text-white">{data.mobile}</span></p>
-        <p><span className="text-slate-500">Property:</span> <span className="text-white">{prop?.name}</span></p>
-        <p><span className="text-slate-500">Flat:</span> <span className="text-white">{flat?.flatNumber}</span></p>
-        <p><span className="text-slate-500">Rent:</span> <span className="text-white">₹{data.rentAmount?.toLocaleString('en-IN')}</span></p>
-        <p><span className="text-slate-500">Deposit:</span> <span className="text-white">₹{data.depositAmount?.toLocaleString('en-IN')}</span></p>
-        <p><span className="text-slate-500">Deposit Pending:</span> <span className="text-white">₹{data.depositPending?.toLocaleString('en-IN')}</span></p>
-        <p><span className="text-slate-500">Join Date:</span> <span className="text-white">{data.joinDate ? new Date(data.joinDate).toLocaleDateString('en-IN') : '-'}</span></p>
-        {data.leaveDate && <p><span className="text-slate-500">Leave Date:</span> <span className="text-white">{new Date(data.leaveDate).toLocaleDateString('en-IN')}</span></p>}
-        <p><span className="text-slate-500">Status:</span> <span className={data.isActive ? 'text-green-400' : 'text-slate-500'}>{data.isActive ? 'Active' : 'Left'}</span></p>
-        {data.notes && <p><span className="text-slate-500">Notes:</span> <span className="text-white">{data.notes}</span></p>}
+      <div className="card-soft space-y-3">
+        <p><span className="text-ink-muted">Mobile:</span> <span className="text-ink font-medium">{data.mobile}</span></p>
+        <p><span className="text-ink-muted">Property:</span> <span className="text-ink">{prop?.name}</span></p>
+        <p><span className="text-ink-muted">Flat:</span> <span className="text-ink">{flat?.flatNumber}</span></p>
+        <p><span className="text-ink-muted">Rent:</span> <span className="text-ink font-medium">₹{data.rentAmount?.toLocaleString('en-IN')}</span></p>
+        <p><span className="text-ink-muted">Deposit:</span> <span className="text-ink font-medium">₹{data.depositAmount?.toLocaleString('en-IN')}</span></p>
+        <p><span className="text-ink-muted">Deposit Pending:</span> <span className="text-ink font-medium">₹{pending.toLocaleString('en-IN')}</span></p>
+        <p><span className="text-ink-muted">Join Date:</span> <span className="text-ink">{data.joinDate ? new Date(data.joinDate).toLocaleDateString('en-IN') : '-'}</span></p>
+        {data.leaveDate && <p><span className="text-ink-muted">Leave Date:</span> <span className="text-ink">{new Date(data.leaveDate).toLocaleDateString('en-IN')}</span></p>}
+        <p><span className="text-ink-muted">Status:</span> <span className={data.isActive ? 'text-green-600 font-medium' : 'text-ink-muted'}>{data.isActive ? 'Active' : 'Left'}</span></p>
+        {data.notes && <p><span className="text-ink-muted">Notes:</span> <span className="text-ink">{data.notes}</span></p>}
       </div>
 
-      <Link href="/tenants" className="text-slate-400 hover:text-white text-sm">← Back to Tenants</Link>
+      {pending > 0 && (
+        <div className="card-soft">
+          <h2 className="text-lg font-semibold text-ink mb-2">Collect Pending Deposit</h2>
+          <p className="text-sm text-ink-muted mb-3">Pending: ₹{pending.toLocaleString('en-IN')}. Enter amount received to reduce pending.</p>
+          <form onSubmit={handleCollectDeposit} className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-sm font-medium text-ink mb-1">Amount (₹)</label>
+              <input
+                type="number"
+                min={1}
+                max={pending}
+                step={1}
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="0"
+                className="input-soft min-h-[44px]"
+              />
+            </div>
+            <button type="submit" disabled={collectingDeposit || !depositAmount.trim()} className="btn-pill-primary min-h-[44px] px-5">
+              {collectingDeposit ? 'Saving...' : 'Collect Deposit'}
+            </button>
+          </form>
+          {depositError && <p className="mt-2 text-sm text-red-600">{depositError}</p>}
+        </div>
+      )}
+
+      <Link href="/tenants" className="text-sm text-ink-muted hover:text-ink font-medium">← Back to Tenants</Link>
     </div>
   );
 }

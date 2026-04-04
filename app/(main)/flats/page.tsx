@@ -8,6 +8,7 @@ interface Flat {
   _id: string;
   flatNumber: string;
   isActive?: boolean;
+  hasActiveTenant?: boolean;
   propertyId: { _id: string; name: string; propertyNumber?: string };
 }
 
@@ -49,14 +50,14 @@ export default function FlatsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Flats</h1>
+      <h1 className="text-2xl font-bold text-ink">Flats</h1>
 
-      <div className="flex gap-4 items-center">
-        <label className="text-sm text-slate-400">Property</label>
+      <div className="flex flex-wrap gap-4 items-center">
+        <label className="text-sm font-medium text-ink">Property</label>
         <select
           value={propertyId}
           onChange={(e) => setPropertyId(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
+          className="min-h-[44px] sm:min-h-0 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-ink focus:ring-2 focus:ring-primary focus:border-primary"
         >
           <option value="">All</option>
           {properties.map((p) => (
@@ -67,39 +68,41 @@ export default function FlatsPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
         </div>
       ) : (
-        <div className="rounded-xl bg-slate-900 border border-slate-700 overflow-hidden">
+        <div className="card-soft overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-800 text-slate-300 text-sm">
+            <table className="w-full text-left min-w-[500px]">
+              <thead className="bg-slate-50 text-ink-muted text-xs font-semibold uppercase tracking-wide">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Flat Number</th>
-                  <th className="px-4 py-3 font-medium">Property</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
+                  <th className="px-4 sm:px-6 py-3">Flat Number</th>
+                  <th className="px-4 sm:px-6 py-3">Property</th>
+                  <th className="px-4 sm:px-6 py-3">Status</th>
+                  <th className="px-4 sm:px-6 py-3">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-slate-100">
                 {items.map((f) => {
                   const active = f.isActive !== false;
+                  const occupied = f.hasActiveTenant === true;
+                  const displayVacant = !occupied;
                   return (
-                    <tr key={f._id} className="text-slate-300">
-                      <td className="px-4 py-3">{f.flatNumber}</td>
-                      <td className="px-4 py-3">{(f.propertyId as { name: string })?.name ?? '-'}</td>
-                      <td className="px-4 py-3">
-                        {active ? <span className="text-green-400">Active</span> : <span className="text-slate-500">Inactive</span>}
+                    <tr key={f._id} className="hover:bg-slate-50/50">
+                      <td className="px-4 sm:px-6 py-3 text-ink font-medium">{f.flatNumber}</td>
+                      <td className="px-4 sm:px-6 py-3 text-ink">{(f.propertyId as { name: string })?.name ?? '-'}</td>
+                      <td className="px-4 sm:px-6 py-3">
+                        {displayVacant ? <span className="text-ink-muted">Vacant</span> : <span className="text-green-600 font-medium">Occupied</span>}
                         <button
                           onClick={() => toggleFlatStatus(f._id, active)}
-                          className={`ml-2 px-2 py-1 rounded text-xs font-medium ${active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}
+                          className={`ml-2 min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium ${active ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-secondary-50 text-secondary-700 hover:bg-secondary-100'}`}
                         >
                           {active ? 'Deactivate' : 'Activate'}
                         </button>
                       </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/flats/${f._id}`} className="text-primary-400 hover:underline mr-3">View</Link>
-                        <Link href={`/flats/${f._id}/edit`} className="text-slate-400 hover:underline">Edit</Link>
+                      <td className="px-4 sm:px-6 py-3">
+                        <Link href={`/flats/${f._id}`} className="text-primary font-medium hover:underline mr-3">View</Link>
+                        <Link href={`/flats/${f._id}/edit`} className="text-ink-muted hover:text-ink">Edit</Link>
                       </td>
                     </tr>
                   );
@@ -108,11 +111,11 @@ export default function FlatsPage() {
             </table>
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-              <p className="text-sm text-slate-500">Page {page} of {totalPages} ({total} total)</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-slate-100">
+              <p className="text-sm text-ink-muted">Page {page} of {totalPages} ({total} total)</p>
               <div className="flex gap-2">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1 rounded bg-slate-700 text-sm disabled:opacity-50">Previous</button>
-                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1 rounded bg-slate-700 text-sm disabled:opacity-50">Next</button>
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="min-h-[44px] sm:min-h-0 px-4 py-2 rounded-xl border border-slate-200 text-ink text-sm font-medium hover:bg-slate-50 disabled:opacity-50">Previous</button>
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="min-h-[44px] sm:min-h-0 px-4 py-2 rounded-xl border border-slate-200 text-ink text-sm font-medium hover:bg-slate-50 disabled:opacity-50">Next</button>
               </div>
             </div>
           )}

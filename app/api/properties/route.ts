@@ -31,8 +31,8 @@ export async function GET(request: Request) {
       Flat.aggregate([{ $match: { propertyId: { $in: ids }, isDeleted: false } }, { $group: { _id: '$propertyId', count: { $sum: 1 } } }]),
       Tenant.aggregate([{ $match: { propertyId: { $in: ids }, isDeleted: false } }, { $group: { _id: '$propertyId', count: { $sum: 1 } } }]),
     ]);
-    const flatMap = Object.fromEntries((flatCounts as { _id: unknown; count: number }[]).map((d) => [d._id.toString(), d.count]));
-    const tenantMap = Object.fromEntries((tenantCounts as { _id: unknown; count: number }[]).map((d) => [d._id.toString(), d.count]));
+    const flatMap = Object.fromEntries((flatCounts as { _id: unknown; count: number }[]).map((d) => [String(d._id), d.count]));
+    const tenantMap = Object.fromEntries((tenantCounts as { _id: unknown; count: number }[]).map((d) => [String(d._id), d.count]));
     const itemsWithCounts = (items as { _id: { toString: () => string } }[]).map((p) => ({
       ...p,
       totalFlats: flatMap[p._id.toString()] ?? 0,

@@ -19,15 +19,22 @@ export async function GET(request: Request) {
     const limit = Math.min(50, Math.max(10, parseInt(searchParams.get('limit') ?? '20', 10)));
     const skip = (page - 1) * limit;
     const activeFilter = searchParams.get('active');
+    const q = searchParams.get('q')?.trim();
     const query: Record<string, unknown> = { propertyId: { $in: propertyIds }, flatId: { $in: activeFlatIds }, isDeleted: false };
     if (activeFilter === 'true') query.isActive = true;
     if (activeFilter === 'false') query.isActive = false;
+    if (q) {
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(esc, 'i');
+      query.$or = [{ name: rx }, { mobile: rx }];
+    }
     const [items, total] = await Promise.all([
       Tenant.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('propertyId', 'name propertyNumber')
+        .select('name mobile rentAmount depositAmount joinDate isActive propertyId flatId createdAt')
+        .populate('propertyId', 'name')
         .populate('flatId', 'flatNumber')
         .lean(),
       Tenant.countDocuments(query),
@@ -69,12 +76,14 @@ export async function POST(request: Request) {
     const { Flat } = await import('@/lib/models');
     const flat = await Flat.findOne({ _id: flatId, propertyId, userId: ownerId, isDeleted: false });
     if (!flat) return NextResponse.json({ error: 'Flat not found' }, { status: 404 });
-    // One tenant per flat: vacate any existing active tenant in this flat
-    const joinD = new Date(joinDate);
-    await Tenant.updateMany(
-      { flatId, isActive: true, isDeleted: false },
-      { $set: { isActive: false, leaveDate: joinD } }
-    );
+    // One tenant per flat: do not allow adding if flat already has an active tenant
+    const existingActive = await Tenant.findOne({ flatId, isActive: true, isDeleted: false });
+    if (existingActive) {
+      return NextResponse.json(
+        { error: 'This flat already has an active tenant. Only one tenant per flat is allowed.' },
+        { status: 400 }
+      );
+    }
     const tenant = await Tenant.create({
       name: name.trim(),
       mobile: String(mobile).trim(),

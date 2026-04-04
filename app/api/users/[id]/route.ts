@@ -18,7 +18,7 @@ export async function PATCH(
   try {
     await connectDB();
     const { id } = await params;
-    const ownerId = auth.user._id.toString();
+    const ownerId = String(auth.user._id);
     const body = await request.json();
     const subUser = await User.findOne({ _id: id, ownerId });
     if (!subUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -60,7 +60,7 @@ export async function DELETE(
   try {
     await connectDB();
     const { id } = await params;
-    const ownerId = auth.user._id.toString();
+    const ownerId = String(auth.user._id);
     const updated = await User.findOneAndUpdate(
       { _id: id, ownerId },
       { $set: { isActive: false } },

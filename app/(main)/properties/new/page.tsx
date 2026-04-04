@@ -47,45 +47,27 @@ export default function NewPropertyPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-white mb-6">Add Property</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-slate-900 border border-slate-700 p-6">
+      <h1 className="text-2xl font-bold text-ink mb-6">Add Property</h1>
+      <form onSubmit={handleSubmit} className="card-soft space-y-4">
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/20 text-red-400 text-sm">{error}</div>
+          <div className="p-3 rounded-input bg-red-50/80 text-red-700 text-sm">{error}</div>
         )}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Property Name *</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
-          />
+          <label className="block text-sm font-medium text-ink mb-1">Property Name *</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="input-soft min-h-[44px]" placeholder="e.g. Tower A" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Property Number *</label>
-          <input
-            type="text"
-            value={propertyNumber}
-            onChange={(e) => setPropertyNumber(e.target.value)}
-            required
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
-          />
+          <label className="block text-sm font-medium text-ink mb-1">Property Number *</label>
+          <input type="text" value={propertyNumber} onChange={(e) => setPropertyNumber(e.target.value)} required className="input-soft min-h-[44px]" placeholder="e.g. PROP-001" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Address *</label>
-          <textarea
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            required
-            rows={2}
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
-          />
+          <label className="block text-sm font-medium text-ink mb-1">Address *</label>
+          <textarea value={address} onChange={(e) => setAddress(e.target.value)} required rows={2} className="input-soft" placeholder="Full address" />
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-slate-300">Flats (optional)</label>
-            <button type="button" onClick={addFlat} className="text-sm text-primary-400 hover:underline">
+            <label className="block text-sm font-medium text-ink">Flats (optional)</label>
+            <button type="button" onClick={addFlat} className="text-sm font-medium text-primary-500 hover:underline">
               + Add flat
             </button>
           </div>
@@ -98,23 +80,19 @@ export default function NewPropertyPage() {
                   setFlats((prev) => prev.map((x, j) => (j === i ? { flatNumber: e.target.value } : x)))
                 }
                 placeholder="Flat number"
-                className="flex-1 px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
+                className="input-soft flex-1 min-h-[44px]"
               />
-              <button type="button" onClick={() => removeFlat(i)} className="px-3 py-2 text-red-400 hover:bg-slate-700 rounded">
+              <button type="button" onClick={() => removeFlat(i)} className="px-3 py-2 rounded-input bg-red-50 text-red-600 hover:bg-red-100 font-medium text-sm">
                 Remove
               </button>
             </div>
           ))}
         </div>
         <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading} className="btn-pill-primary min-h-[44px] px-6">
             {loading ? 'Saving...' : 'Save Property'}
           </button>
-          <Link href="/properties" className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800">
+          <Link href="/properties" className="min-h-[44px] px-6 py-2.5 rounded-input bg-slate-50 text-ink font-medium hover:bg-slate-100 inline-flex items-center">
             Cancel
           </Link>
         </div>

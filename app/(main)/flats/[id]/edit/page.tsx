@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
+import { Spinner } from '@/components/Spinner';
 
 export default function EditFlatPage() {
   const params = useParams();
@@ -41,32 +42,33 @@ export default function EditFlatPage() {
 
   if (fetching) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent" />
+      <div className="flex justify-center py-16">
+        <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl">
-      <h1 className="text-2xl font-bold text-white mb-6">Edit Flat</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-slate-900 border border-slate-700 p-6">
-        {error && <div className="p-3 rounded-lg bg-red-500/20 text-red-400 text-sm">{error}</div>}
+    <div className="max-w-xl space-y-6">
+      <h1 className="text-2xl font-bold text-ink">Edit Flat</h1>
+      <form onSubmit={handleSubmit} className="card-soft space-y-4">
+        {error && <div className="p-3 rounded-input bg-red-50/80 text-red-700 text-sm">{error}</div>}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Flat Number *</label>
+          <label className="block text-sm font-medium text-ink mb-1">Flat Number *</label>
           <input
             type="text"
             value={flatNumber}
             onChange={(e) => setFlatNumber(e.target.value)}
             required
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
+            className="input-soft min-h-[44px]"
           />
         </div>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 disabled:opacity-50">
-            {loading ? 'Saving...' : 'Update'}
+          <button type="submit" disabled={loading} className="btn-pill-primary min-h-[44px] px-6 inline-flex items-center justify-center gap-2">
+            {loading && <Spinner size="sm" />}
+            {loading ? 'Saving…' : 'Update'}
           </button>
-          <Link href={`/flats/${id}`} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800">Cancel</Link>
+          <Link href={`/flats/${id}`} className="min-h-[44px] px-6 py-2.5 rounded-input bg-slate-50 text-ink font-medium hover:bg-slate-100 inline-flex items-center">Cancel</Link>
         </div>
       </form>
     </div>

@@ -62,6 +62,22 @@ export async function PATCH(
         else update[key] = body[key];
       }
     }
+    // When activating a tenant, ensure the flat has no other active tenant
+    if (body.isActive === true && tenant.flatId) {
+      const otherActive = await Tenant.findOne({
+        flatId: tenant.flatId,
+        isActive: true,
+        isDeleted: false,
+        _id: { $ne: id },
+      });
+      if (otherActive) {
+        const otherName = (otherActive as { name?: string }).name ?? 'Another tenant';
+        return NextResponse.json(
+          { error: `In that flat, ${otherName} already lives. Cannot activate.` },
+          { status: 400 }
+        );
+      }
+    }
     const updated = await Tenant.findByIdAndUpdate(id, { $set: update }, { new: true })
       .populate('propertyId', 'name propertyNumber')
       .populate('flatId', 'flatNumber')

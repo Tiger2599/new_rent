@@ -18,10 +18,24 @@ export async function GET(
     const property = await Property.findOne({ _id: id, userId: ownerId, isDeleted: false }).lean();
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 });
     const [flats, tenantCount] = await Promise.all([
-      Flat.find({ propertyId: id, isDeleted: false }).lean(),
+      Flat.find({ propertyId: id, isDeleted: false }).sort({ flatNumber: 1 }).lean(),
       Tenant.countDocuments({ propertyId: id, isDeleted: false }),
     ]);
-    return NextResponse.json({ ...property, flats, tenantCount });
+    const flatIds = flats.map((f) => f._id);
+    const activeTenants = await Tenant.find({
+      propertyId: id,
+      flatId: { $in: flatIds },
+      isActive: true,
+      isDeleted: false,
+    })
+      .select('name flatId')
+      .lean();
+    const nameByFlat = new Map(activeTenants.map((t) => [String(t.flatId), t.name]));
+    const flatsWithTenant = flats.map((f) => ({
+      ...f,
+      activeTenantName: nameByFlat.get(String(f._id)) ?? null,
+    }));
+    return NextResponse.json({ ...property, flats: flatsWithTenant, tenantCount });
   } catch (e) {
     console.error('Property get error:', e);
     return NextResponse.json({ error: 'Failed to fetch property' }, { status: 500 });

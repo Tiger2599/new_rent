@@ -3,15 +3,52 @@
 @tailwind utilities;
 
 :root {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --card: #1e293b;
-  --border: #334155;
-  --muted: #64748b;
+  --color-bg: #f8fafc;
+  --color-card: #ffffff;
+  --color-ink: #1e293b;
+  --color-soft-blue: #BFD9FF;
+  --color-sky-blue: #D6ECFF;
+  --color-soft-purple: #E9D8FD;
+  --color-lavender: #F3E8FF;
+  --radius-card: 20px;
+  --radius-input: 14px;
+  --radius-pill: 9999px;
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-surface text-ink antialiased;
+}
+
+/* Fintech card base */
+@layer components {
+  .card-soft {
+    @apply bg-surface-card rounded-card p-5 shadow-card;
+  }
+  .card-gradient-blue {
+    @apply rounded-card p-5 bg-gradient-to-br from-primary-soft to-primary-sky shadow-card;
+  }
+  .card-gradient-purple {
+    @apply rounded-card p-5 bg-gradient-to-br from-purple-soft to-purple-lavender shadow-card;
+  }
+  .card-gradient-mint {
+    @apply rounded-card p-5 bg-gradient-to-br from-mint-soft to-mint-light shadow-card;
+  }
+  .btn-pill {
+    @apply rounded-pill px-5 py-2.5 font-medium transition-all duration-200;
+  }
+  .btn-pill-primary {
+    @apply btn-pill bg-gradient-primary text-white shadow-soft hover:opacity-95 hover:shadow-soft-lg;
+  }
+  .input-soft {
+    @apply w-full rounded-input px-4 py-3 bg-slate-50/80 text-ink placeholder-ink-light border border-slate-200/60 focus:border-primary-soft focus:ring-2 focus:ring-primary-200/50 focus:bg-white transition;
+  }
+}
+
+/* Touch-friendly on mobile */
+@media (pointer: coarse) {
+  button, a[href], [role="button"] {
+    min-height: 44px;
+  }
 }
 
 /* Scrollbar */
@@ -20,11 +57,11 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-slate-900;
+  @apply bg-slate-100 rounded-full;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded-full;
+  @apply bg-slate-300 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-500;
+  @apply bg-slate-400;
 }

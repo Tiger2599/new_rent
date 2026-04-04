@@ -89,34 +89,34 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Notes</h1>
+      <h1 className="text-2xl font-bold text-ink">Notes / Maintenance</h1>
 
-      <form onSubmit={handleSubmit} className="rounded-xl bg-slate-900 border border-slate-700 p-6 space-y-4 max-w-xl">
-        <h2 className="text-lg font-semibold text-white">{editingId ? 'Edit Note' : 'New Note'}</h2>
+      <form onSubmit={handleSubmit} className="card-soft p-6 space-y-4 max-w-xl">
+        <h2 className="text-lg font-semibold text-ink">{editingId ? 'Edit Note' : 'New Note'}</h2>
         <div>
-          <label className="block text-sm text-slate-400 mb-1">Title *</label>
+          <label className="block text-sm font-medium text-ink mb-1">Title *</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white"
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-ink placeholder-ink-muted focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
         <div>
-          <label className="block text-sm text-slate-400 mb-1">Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white" />
+          <label className="block text-sm font-medium text-ink mb-1">Description</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-ink placeholder-ink-muted focus:ring-2 focus:ring-primary focus:border-primary" />
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="rounded" />
-          <span className="text-sm text-slate-300">Pin to Dashboard</span>
+          <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="rounded border-slate-300 text-primary focus:ring-primary" />
+          <span className="text-sm text-ink">Pin to Dashboard</span>
         </label>
         <div className="flex gap-2">
-          <button type="submit" disabled={submitLoading} className="px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 disabled:opacity-50">
+          <button type="submit" disabled={submitLoading} className="min-h-[44px] px-4 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-700 disabled:opacity-50 shadow-soft">
             {submitLoading ? 'Saving...' : editingId ? 'Update' : 'Save'}
           </button>
           {editingId && (
-            <button type="button" onClick={() => setEditingId(null)} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300">
+            <button type="button" onClick={() => setEditingId(null)} className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 text-ink hover:bg-slate-50">
               Cancel
             </button>
           )}
@@ -125,23 +125,23 @@ export default function NotesPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((n) => (
-            <div key={n._id} className="rounded-xl bg-slate-900 border border-slate-700 p-4">
+            <div key={n._id} className="card-soft p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-medium text-white">{n.title}</h3>
-                  {n.description && <p className="text-sm text-slate-500 mt-1">{n.description}</p>}
+                  <h3 className="font-medium text-ink">{n.title}</h3>
+                  {n.description && <p className="text-sm text-ink-muted mt-1">{n.description}</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => togglePin(n._id, n.isPinned)} className="text-slate-400 hover:text-amber-400" title={n.isPinned ? 'Unpin' : 'Pin'}>
+                  <button onClick={() => togglePin(n._id, n.isPinned)} className="p-2 rounded-lg text-ink-muted hover:text-amber-600 hover:bg-amber-50" title={n.isPinned ? 'Unpin' : 'Pin'}>
                     {n.isPinned ? '📌' : '📍'}
                   </button>
-                  <button onClick={() => setEditingId(n._id)} className="text-slate-400 hover:text-white">Edit</button>
-                  <button onClick={() => deleteNote(n._id)} className="text-slate-400 hover:text-red-400">Delete</button>
+                  <button onClick={() => setEditingId(n._id)} className="p-2 rounded-lg text-ink-muted hover:text-primary hover:bg-primary-50">Edit</button>
+                  <button onClick={() => deleteNote(n._id)} className="p-2 rounded-lg text-ink-muted hover:text-red-600 hover:bg-red-50">Delete</button>
                 </div>
               </div>
             </div>

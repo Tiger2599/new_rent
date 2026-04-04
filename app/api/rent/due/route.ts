@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     }> = [];
 
     for (const tenant of tenants) {
-      const t = tenant as { _id: string; joinDate: Date; leaveDate?: Date; rentAmount: number; depositPending?: number };
+      const t = tenant as unknown as { _id: string; joinDate: Date; leaveDate?: Date; rentAmount: number; depositPending?: number };
       const dueThisMonth = rentDueForMonth(
         t.rentAmount,
         new Date(t.joinDate),
