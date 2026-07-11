@@ -4,8 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
+import ProofUpload from "@/components/ProofUpload";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
+import type { TenantProof } from "@/types/tenant";
 
 const initialForm = {
   name: "",
@@ -24,6 +26,7 @@ export default function AddTenantPage() {
   const { user } = useAuth();
   const { notifyError, notifySuccess } = useNotification();
   const [form, setForm] = useState(initialForm);
+  const [proofs, setProofs] = useState<TenantProof[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   function updateField(field: keyof typeof form, value: string) {
@@ -47,6 +50,7 @@ export default function AddTenantPage() {
         rent: Number(form.rent),
         rentStartFrom: form.rentStartFrom,
         note: form.note,
+        proofs,
         receivedBy: user?.name ?? "Admin",
       }),
     });
@@ -61,7 +65,8 @@ export default function AddTenantPage() {
 
     notifySuccess("Tenant added successfully.");
     setForm(initialForm);
-    router.push("/tenants");
+    setProofs([]);
+    router.push(`/tenants/${data.tenant.id}`);
   }
 
   return (
@@ -178,6 +183,12 @@ export default function AddTenantPage() {
               className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:bg-white"
             />
           </label>
+
+          <ProofUpload
+            value={proofs}
+            disabled={submitting}
+            onChange={setProofs}
+          />
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-gray-700">

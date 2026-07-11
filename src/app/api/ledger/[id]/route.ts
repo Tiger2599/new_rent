@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  deleteLedgerEntry,
   getLedgerEntryById,
   updateLedgerEntry,
 } from "@/lib/ledger-storage";
@@ -61,4 +62,15 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   return NextResponse.json({ entry });
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const deleted = await deleteLedgerEntry(id);
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Entry not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ success: true });
 }

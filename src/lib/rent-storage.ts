@@ -75,3 +75,21 @@ export async function addRentPayments(
 
   return newPayments;
 }
+
+export async function getRentPaymentById(
+  id: string,
+): Promise<RentPayment | null> {
+  const db = await getDb();
+  return db
+    .collection<RentPayment>(collections.rentPayments)
+    .findOne({ id }, noId);
+}
+
+export async function deleteRentPayment(id: string): Promise<RentPayment | null> {
+  const db = await getDb();
+  const col = db.collection<RentPayment>(collections.rentPayments);
+  const existing = await col.findOne({ id }, noId);
+  if (!existing) return null;
+  await col.deleteOne({ id });
+  return existing;
+}

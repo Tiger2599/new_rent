@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { addRentPayment } from "@/lib/rent-storage";
 import { addTenant, getActiveTenants } from "@/lib/tenant-storage";
-import type { TenantInput } from "@/types/tenant";
+import type { TenantInput, TenantProof } from "@/types/tenant";
+
+function parseProofs(input: unknown): TenantProof[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const url = String((item as TenantProof).url ?? "").trim();
+      const publicId = String((item as TenantProof).publicId ?? "").trim();
+      if (!url) return null;
+      return { url, publicId };
+    })
+    .filter(Boolean) as TenantProof[];
+}
 
 export async function GET() {
   const tenants = await getActiveTenants();
@@ -22,6 +35,7 @@ export async function POST(request: Request) {
   const rent = Number(body.rent);
   const rentStartFrom = body.rentStartFrom?.trim();
   const note = body.note?.trim() ?? "";
+  const proofs = parseProofs(body.proofs);
   const receivedBy = body.receivedBy?.trim() || "Admin";
 
   if (!name || !mobile || !buildingNumber || !roomNumber || !rentStartFrom) {
@@ -64,6 +78,7 @@ export async function POST(request: Request) {
     rent,
     rentStartFrom,
     note,
+    proofs,
     createdAt: now,
   });
 

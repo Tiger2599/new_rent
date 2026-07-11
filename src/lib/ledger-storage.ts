@@ -35,3 +35,9 @@ export async function updateLedgerEntry(
   await col.updateOne({ id }, { $set: patch });
   return col.findOne({ id }, noId);
 }
+
+export async function deleteLedgerEntry(id: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection(collections.ledger).deleteOne({ id });
+  return result.deletedCount === 1;
+}

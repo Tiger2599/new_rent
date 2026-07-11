@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import DashboardLayout from "@/components/DashboardLayout";
+import ImagePreview from "@/components/ImagePreview";
 import RentReceiveForm from "@/components/RentReceiveForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
@@ -11,6 +13,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { paymentTitle } from "@/lib/rent-utils";
 import type { PaymentType, RentPayment } from "@/types/rent";
 import type { Tenant } from "@/types/tenant";
+import { normalizeTenantProofs } from "@/types/tenant";
 
 export default function TenantDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -27,6 +30,11 @@ export default function TenantDetailsPage() {
   const [showRentForm, setShowRentForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(
+    null,
+  );
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -91,6 +99,23 @@ export default function TenantDetailsPage() {
     await loadData();
   }
 
+  async function handleDeletePayment(paymentId: string) {
+    setDeletingPaymentId(paymentId);
+    const res = await fetch(`/api/tenants/${params.id}/rent/${paymentId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    setDeletingPaymentId(null);
+
+    if (!res.ok) {
+      notifyError(data.error ?? "Failed to delete payment.");
+      return;
+    }
+
+    notifySuccess("Payment removed.");
+    await loadData();
+  }
+
   async function handleRemove() {
     if (!tenant || tenant.removedAt) return;
 
@@ -110,6 +135,7 @@ export default function TenantDetailsPage() {
 
   const isOld = Boolean(tenant?.removedAt);
   const advancePaid = tenant?.advance ?? 0;
+  const proofs = tenant ? normalizeTenantProofs(tenant) : [];
 
   return (
     <AuthGuard>
@@ -144,6 +170,29 @@ export default function TenantDetailsPage() {
                   </span>
                 )}
               </div>
+
+              {proofs.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {proofs.map((proof, index) => (
+                    <button
+                      key={`${proof.publicId}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setPreviewIndex(index);
+                        setPreviewOpen(true);
+                      }}
+                      className="block overflow-hidden rounded-xl border border-gray-200 text-left"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={proof.url}
+                        alt={`${tenant.name} proof ${index + 1}`}
+                        className="h-32 w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -211,7 +260,7 @@ export default function TenantDetailsPage() {
               </dl>
 
               {!isOld && (
-                <div className="mt-5 flex gap-3">
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     type="button"
                     onClick={() => setShowRentForm(true)}
@@ -219,6 +268,12 @@ export default function TenantDetailsPage() {
                   >
                     Rent
                   </button>
+                  <Link
+                    href={`/tenants/${tenant.id}/edit`}
+                    className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    Edit
+                  </Link>
                   <button
                     type="button"
                     disabled={removing}
@@ -256,7 +311,7 @@ export default function TenantDetailsPage() {
                   {payments.map((payment) => (
                     <li key={payment.id} className="px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900">
                             {paymentTitle(payment)}
                           </p>
@@ -271,10 +326,20 @@ export default function TenantDetailsPage() {
                               {payment.note}
                             </p>
                           )}
+                          <p className="mt-1 text-sm font-semibold text-green-700">
+                            {formatCurrency(payment.amount)}
+                          </p>
                         </div>
-                        <p className="text-sm font-semibold text-green-700">
-                          {formatCurrency(payment.amount)}
-                        </p>
+                        <button
+                          type="button"
+                          disabled={deletingPaymentId === payment.id}
+                          onClick={() => handleDeletePayment(payment.id)}
+                          className="shrink-0 rounded border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {deletingPaymentId === payment.id
+                            ? "..."
+                            : "Delete"}
+                        </button>
                       </div>
                     </li>
                   ))}
@@ -296,6 +361,17 @@ export default function TenantDetailsPage() {
             onSubmit={handleReceiveRent}
           />
         )}
+
+        <ImagePreview
+          open={previewOpen}
+          index={previewIndex}
+          images={proofs.map((p, i) => ({
+            url: p.url,
+            alt: `${tenant?.name ?? "Tenant"} proof ${i + 1}`,
+          }))}
+          onClose={() => setPreviewOpen(false)}
+          onIndexChange={setPreviewIndex}
+        />
       </DashboardLayout>
     </AuthGuard>
   );

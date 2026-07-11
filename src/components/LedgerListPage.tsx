@@ -20,6 +20,7 @@ export default function LedgerListPage({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadEntries = useCallback(async () => {
     setLoading(true);
@@ -68,6 +69,21 @@ export default function LedgerListPage({
     await loadEntries();
   }
 
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    const res = await fetch(`/api/ledger/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    setDeletingId(null);
+
+    if (!res.ok) {
+      notifyError(data.error ?? "Failed to delete entry.");
+      return;
+    }
+
+    notifySuccess("Entry deleted.");
+    await loadEntries();
+  }
+
   return (
     <AuthGuard>
       <DashboardLayout title={title} backHref="/dashboard">
@@ -105,13 +121,23 @@ export default function LedgerListPage({
                       {formatCurrency(entry.amount)}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(entry)}
-                    className="shrink-0 rounded border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(entry)}
+                      className="rounded border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingId === entry.id}
+                      onClick={() => handleDelete(entry.id)}
+                      className="rounded border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {deletingId === entry.id ? "..." : "Delete"}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

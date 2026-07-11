@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import BackButton from "@/components/BackButton";
+import HeaderSearch from "@/components/HeaderSearch";
 import MobileContainer from "@/components/MobileContainer";
 import Sidebar from "@/components/Sidebar";
-import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayout({
   children,
@@ -18,13 +18,12 @@ export default function DashboardLayout({
   backHref?: string;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
 
   return (
     <MobileContainer>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3">
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
@@ -46,10 +45,10 @@ export default function DashboardLayout({
             />
           </svg>
         </button>
-        <h1 className="text-base font-semibold text-gray-800">{title}</h1>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
-          {user?.name?.charAt(0).toUpperCase()}
-        </div>
+        <h1 className="min-w-0 flex-1 truncate text-center text-base font-semibold text-gray-800">
+          {title}
+        </h1>
+        <HeaderSearch />
       </header>
 
       <main className="flex-1 px-4 py-5">
