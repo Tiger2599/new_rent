@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import ImagePreview from "@/components/ImagePreview";
+import { compressImage } from "@/lib/compress-image";
 import type { TenantProof } from "@/types/tenant";
 
 type ProofUploadProps = {
@@ -20,6 +21,7 @@ export default function ProofUpload({
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -39,30 +41,59 @@ export default function ProofUpload({
 
     const uploaded: TenantProof[] = [];
 
-    for (const file of selected) {
-      const body = new FormData();
-      body.append("file", file);
+    try {
+      for (let i = 0; i < selected.length; i++) {
+        const file = selected[i];
+        const label =
+          selected.length > 1 ? `${i + 1}/${selected.length}` : "";
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body,
-      });
-      const data = await res.json();
+        setStatus(label ? `Compressing ${label}...` : "Compressing...");
+        const compressed = await compressImage(file);
 
-      if (!res.ok) {
-        setUploading(false);
-        setError(data.error ?? "Upload failed.");
+        setStatus(label ? `Uploading ${label}...` : "Uploading...");
+        const body = new FormData();
+        body.append("file", compressed);
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 60_000);
+
+        let res: Response;
+        try {
+          res = await fetch("/api/upload", {
+            method: "POST",
+            body,
+            signal: controller.signal,
+          });
+        } catch (err) {
+          window.clearTimeout(timeout);
+          if (err instanceof DOMException && err.name === "AbortError") {
+            throw new Error(
+              "Upload timed out. Check your internet and try again.",
+            );
+          }
+          throw new Error("Upload failed. Check your internet and try again.");
+        }
+        window.clearTimeout(timeout);
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error ?? "Upload failed.");
+        }
+
+        uploaded.push({ url: data.url, publicId: data.publicId });
         if (uploaded.length > 0) {
           onChange([...value, ...uploaded]);
         }
-        return;
       }
-
-      uploaded.push({ url: data.url, publicId: data.publicId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+      if (uploaded.length > 0) {
+        onChange([...value, ...uploaded]);
+      }
+    } finally {
+      setUploading(false);
+      setStatus("");
     }
-
-    setUploading(false);
-    onChange([...value, ...uploaded]);
   }
 
   function removeAt(index: number) {
@@ -70,6 +101,7 @@ export default function ProofUpload({
   }
 
   const canAdd = value.length < max;
+  const busyLabel = status || "Uploading...";
 
   return (
     <div className="space-y-3">
@@ -125,7 +157,7 @@ export default function ProofUpload({
             onClick={() => fileRef.current?.click()}
             className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Upload Files"}
+            {uploading ? busyLabel : "Upload Files"}
           </button>
           <button
             type="button"
@@ -133,11 +165,14 @@ export default function ProofUpload({
             onClick={() => cameraRef.current?.click()}
             className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Take Photo"}
+            {uploading ? busyLabel : "Take Photo"}
           </button>
         </div>
       )}
 
+      {uploading && (
+        <p className="text-xs text-gray-500">{busyLabel}</p>
+      )}
       {error && <p className="text-xs text-red-600">{error}</p>}
 
       <input

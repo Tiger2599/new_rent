@@ -41,6 +41,11 @@ export async function uploadImageToCloudinary(
         {
           folder,
           resource_type: "image",
+          // Faster ingest; delivery still looks good for proof docs
+          transformation: [
+            { width: 1600, height: 1600, crop: "limit" },
+            { quality: "auto:good", fetch_format: "auto" },
+          ],
         },
         (error, uploaded) => {
           if (error || !uploaded) {
