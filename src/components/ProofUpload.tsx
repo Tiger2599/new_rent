@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ImagePreview from "@/components/ImagePreview";
 import { compressImage } from "@/lib/compress-image";
 import type { TenantProof } from "@/types/tenant";
@@ -10,21 +10,52 @@ type ProofUploadProps = {
   onChange: (proofs: TenantProof[]) => void;
   disabled?: boolean;
   max?: number;
+  /**
+   * Proofs already saved on the server. Removing these only updates local
+   * state — Cloudinary cleanup happens on tenant save.
+   * Newly uploaded proofs (not in this list) are deleted from Cloudinary
+   * immediately when the user hits Remove.
+   */
+  savedProofs?: TenantProof[];
 };
+
+async function deleteCloudinaryProof(publicId: string) {
+  if (!publicId) return;
+  try {
+    await fetch(`/api/upload?publicId=${encodeURIComponent(publicId)}`, {
+      method: "DELETE",
+    });
+  } catch {
+    // best-effort cleanup
+  }
+}
 
 export default function ProofUpload({
   value,
   onChange,
   disabled,
   max = 10,
+  savedProofs = [],
 }: ProofUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const savedIdsRef = useRef<Set<string>>(new Set());
+  const sessionUploadsRef = useRef<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+
+  useEffect(() => {
+    savedIdsRef.current = new Set(
+      savedProofs.map((p) => p.publicId).filter(Boolean),
+    );
+    // Once a proof is known as saved, stop treating it as a session orphan
+    for (const id of savedIdsRef.current) {
+      sessionUploadsRef.current.delete(id);
+    }
+  }, [savedProofs]);
 
   async function uploadFiles(files: FileList | File[] | null | undefined) {
     if (!files || files.length === 0) return;
@@ -80,10 +111,15 @@ export default function ProofUpload({
           throw new Error(data.error ?? "Upload failed.");
         }
 
-        uploaded.push({ url: data.url, publicId: data.publicId });
-        if (uploaded.length > 0) {
-          onChange([...value, ...uploaded]);
+        const proof: TenantProof = {
+          url: data.url,
+          publicId: data.publicId,
+        };
+        uploaded.push(proof);
+        if (proof.publicId) {
+          sessionUploadsRef.current.add(proof.publicId);
         }
+        onChange([...value, ...uploaded]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -97,7 +133,17 @@ export default function ProofUpload({
   }
 
   function removeAt(index: number) {
+    const proof = value[index];
     onChange(value.filter((_, i) => i !== index));
+
+    if (!proof?.publicId) return;
+
+    // Unsaved uploads (not yet on the tenant record) → delete from Cloudinary now.
+    // Already-saved proofs stay until tenant save, which cleans them up.
+    if (!savedIdsRef.current.has(proof.publicId)) {
+      sessionUploadsRef.current.delete(proof.publicId);
+      void deleteCloudinaryProof(proof.publicId);
+    }
   }
 
   const canAdd = value.length < max;
@@ -170,9 +216,7 @@ export default function ProofUpload({
         </div>
       )}
 
-      {uploading && (
-        <p className="text-xs text-gray-500">{busyLabel}</p>
-      )}
+      {uploading && <p className="text-xs text-gray-500">{busyLabel}</p>}
       {error && <p className="text-xs text-red-600">{error}</p>}
 
       <input

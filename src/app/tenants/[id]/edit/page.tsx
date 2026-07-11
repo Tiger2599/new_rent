@@ -28,6 +28,7 @@ export default function EditTenantPage() {
     note: "",
   });
   const [proofs, setProofs] = useState<TenantProof[]>([]);
+  const [savedProofs, setSavedProofs] = useState<TenantProof[]>([]);
 
   const loadTenant = useCallback(async () => {
     setLoading(true);
@@ -58,7 +59,9 @@ export default function EditTenantPage() {
       rentStartFrom: tenant.rentStartFrom.slice(0, 10),
       note: tenant.note ?? "",
     });
-    setProofs(normalizeTenantProofs(tenant));
+    const normalized = normalizeTenantProofs(tenant);
+    setProofs(normalized);
+    setSavedProofs(normalized);
   }, [params.id, notifyError, router]);
 
   useEffect(() => {
@@ -221,6 +224,7 @@ export default function EditTenantPage() {
 
             <ProofUpload
               value={proofs}
+              savedProofs={savedProofs}
               disabled={submitting}
               onChange={setProofs}
             />

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { uploadImageToCloudinary } from "@/lib/cloudinary";
+import {
+  deleteCloudinaryImage,
+  uploadImageToCloudinary,
+} from "@/lib/cloudinary";
 
 export async function POST(request: Request) {
   try {
@@ -38,6 +41,35 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to upload image.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** Delete an image from Cloudinary (used when user removes before save). */
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let publicId = searchParams.get("publicId")?.trim() ?? "";
+
+    if (!publicId) {
+      const body = (await request.json().catch(() => null)) as {
+        publicId?: string;
+      } | null;
+      publicId = body?.publicId?.trim() ?? "";
+    }
+
+    if (!publicId) {
+      return NextResponse.json(
+        { error: "publicId is required." },
+        { status: 400 },
+      );
+    }
+
+    await deleteCloudinaryImage(publicId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to delete image.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
