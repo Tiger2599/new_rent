@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node --env-file=.env.local scripts/migrate-json-to-mongo.mjs",
-    "db:clean": "node --env-file=.env.local scripts/clean-db.mjs"
+    "db:clean": "node --env-file=.env.local scripts/clean-db.mjs",
+    "db:copy": "node --env-file=.env.local scripts/copy-mongo.mjs"
   },
   "dependencies": {
     "cloudinary": "^2.10.0",

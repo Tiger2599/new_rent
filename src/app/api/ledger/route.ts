@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllRentPayments } from "@/lib/rent-storage";
 import { addLedgerEntry, getLedgerEntries } from "@/lib/ledger-storage";
-import { getActiveTenants, getOldTenants } from "@/lib/tenant-storage";
+import { getTenantNameMap } from "@/lib/tenant-storage";
 import { paymentTitle } from "@/lib/rent-utils";
 import {
   buildMonthOptions,
@@ -17,15 +17,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") || currentMonthKey();
 
-  const [payments, ledger, activeTenants, oldTenants] = await Promise.all([
+  const [payments, ledger, tenantName] = await Promise.all([
     getAllRentPayments(),
     getLedgerEntries(),
-    getActiveTenants(),
-    getOldTenants(),
+    getTenantNameMap(),
   ]);
-
-  const tenants = [...activeTenants, ...oldTenants];
-  const tenantName = new Map(tenants.map((t) => [t.id, t.name]));
 
   const allIncome: BalanceSheetItem[] = [];
   const allExpenses: BalanceSheetItem[] = [];

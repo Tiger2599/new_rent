@@ -27,14 +27,30 @@ export async function getUsers(): Promise<UserRecord[]> {
 }
 
 export async function getPublicUsers(): Promise<PublicUser[]> {
-  const users = await getUsers();
-  return users.map(({ id, email, name, role, createdAt }) => ({
-    id,
-    email,
-    name,
-    role: role ?? "admin",
-    createdAt,
-  }));
+  const db = await getDb();
+  return db
+    .collection<PublicUser>(collections.users)
+    .find(
+      {},
+      {
+        projection: {
+          _id: 0,
+          id: 1,
+          email: 1,
+          name: 1,
+          role: 1,
+          createdAt: 1,
+        },
+      },
+    )
+    .sort({ id: 1 })
+    .toArray()
+    .then((users) =>
+      users.map((u) => ({
+        ...u,
+        role: u.role ?? "admin",
+      })),
+    );
 }
 
 export async function findUserByCredentials(

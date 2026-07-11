@@ -24,55 +24,55 @@ export async function getRentPaymentsByTenant(
 export async function addRentPayment(
   payment: RentPayment,
 ): Promise<RentPayment> {
-  const db = await getDb();
-  const col = db.collection<RentPayment>(collections.rentPayments);
-
-  if (
-    (payment.type === "rent" || payment.type === "advance") &&
-    payment.rentMonth
-  ) {
-    const exists = await col.findOne({
-      tenantId: payment.tenantId,
-      rentMonth: payment.rentMonth,
-      type: { $in: ["rent", "advance"] },
-    });
-
-    if (exists) {
-      throw new Error("Rent for this month is already received.");
-    }
-  }
-
-  await col.insertOne(payment);
+  await addRentPayments([payment]);
   return payment;
 }
 
 export async function addRentPayments(
   newPayments: RentPayment[],
 ): Promise<RentPayment[]> {
+  if (newPayments.length === 0) return newPayments;
+
   const db = await getDb();
   const col = db.collection<RentPayment>(collections.rentPayments);
 
-  for (const payment of newPayments) {
-    if (
-      (payment.type === "rent" || payment.type === "advance") &&
-      payment.rentMonth
-    ) {
-      const exists = await col.findOne({
-        tenantId: payment.tenantId,
-        rentMonth: payment.rentMonth,
-        type: { $in: ["rent", "advance"] },
-      });
+  const monthChecks = newPayments.filter(
+    (p) =>
+      (p.type === "rent" || p.type === "advance") && Boolean(p.rentMonth),
+  );
 
-      if (exists) {
-        throw new Error(`Rent for ${payment.rentMonth} is already received.`);
+  if (monthChecks.length > 0) {
+    const orFilters = monthChecks.map((p) => ({
+      tenantId: p.tenantId,
+      rentMonth: p.rentMonth,
+      type: { $in: ["rent", "advance"] as const },
+    }));
+
+    const existing = await col.findOne(
+      { $or: orFilters },
+      { projection: { rentMonth: 1 } },
+    );
+
+    if (existing) {
+      throw new Error(
+        existing.rentMonth
+          ? `Rent for ${existing.rentMonth} is already received.`
+          : "Rent for this month is already received.",
+      );
+    }
+
+    // Also guard duplicates within the same batch
+    const seen = new Set<string>();
+    for (const p of monthChecks) {
+      const key = `${p.tenantId}:${p.rentMonth}`;
+      if (seen.has(key)) {
+        throw new Error(`Rent for ${p.rentMonth} is already received.`);
       }
+      seen.add(key);
     }
   }
 
-  if (newPayments.length > 0) {
-    await col.insertMany(newPayments);
-  }
-
+  await col.insertMany(newPayments);
   return newPayments;
 }
 
