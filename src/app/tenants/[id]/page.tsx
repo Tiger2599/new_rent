@@ -10,7 +10,7 @@ import RentReceiveForm from "@/components/RentReceiveForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { paymentTitle } from "@/lib/rent-utils";
+import { groupRentPayments, paymentTitle } from "@/lib/rent-utils";
 import type { PaymentType, RentPayment } from "@/types/rent";
 import type { Tenant } from "@/types/tenant";
 import { normalizeTenantProofs } from "@/types/tenant";
@@ -24,6 +24,9 @@ export default function TenantDetailsPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [payments, setPayments] = useState<RentPayment[]>([]);
   const [pendingMonths, setPendingMonths] = useState<string[]>([]);
+  const [pendingRemaining, setPendingRemaining] = useState<
+    Record<string, number>
+  >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -62,6 +65,7 @@ export default function TenantDetailsPage() {
     setTenant(tenantData.tenant);
     setPayments(rentData.payments ?? []);
     setPendingMonths(rentData.pendingMonths ?? []);
+    setPendingRemaining(rentData.pendingRemaining ?? {});
     setAdvanceMonths(rentData.advanceMonths ?? []);
     setPendingDeposit(rentData.pendingDeposit ?? 0);
   }, [params.id, notifyError]);
@@ -136,6 +140,11 @@ export default function TenantDetailsPage() {
   const isOld = Boolean(tenant?.removedAt);
   const advancePaid = tenant?.advance ?? 0;
   const proofs = tenant ? normalizeTenantProofs(tenant) : [];
+  const groupedPayments = groupRentPayments(payments);
+  const pendingTotal = pendingMonths.reduce(
+    (sum, month) => sum + (pendingRemaining[month] ?? tenant?.rent ?? 0),
+    0,
+  );
 
   return (
     <AuthGuard>
@@ -287,8 +296,7 @@ export default function TenantDetailsPage() {
 
               {!isOld && pendingMonths.length > 0 && (
                 <p className="mt-3 text-xs text-gray-500">
-                  Pending rent: {pendingMonths.length} month
-                  {pendingMonths.length > 1 ? "s" : ""} (
+                  Pending rent: {formatCurrency(pendingTotal)} (
                   {paymentTitle({ type: "rent", rentMonth: pendingMonths[0] })}
                   {pendingMonths.length > 1 ? " ..." : ""})
                 </p>
@@ -302,18 +310,21 @@ export default function TenantDetailsPage() {
                 </h3>
               </div>
 
-              {payments.length === 0 ? (
+              {groupedPayments.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-gray-500">
                   No payments yet.
                 </p>
               ) : (
                 <ul className="divide-y divide-gray-100">
-                  {payments.map((payment) => (
+                  {groupedPayments.map((payment) => (
                     <li key={payment.id} className="px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900">
-                            {paymentTitle(payment)}
+                            {paymentTitle({
+                              type: payment.type,
+                              rentMonths: payment.rentMonths,
+                            })}
                           </p>
                           <p className="mt-0.5 text-xs text-gray-500">
                             Received on {formatDate(payment.receivedDate)}
@@ -354,6 +365,7 @@ export default function TenantDetailsPage() {
             open={showRentForm}
             defaultRent={tenant.rent}
             pendingMonths={pendingMonths}
+            pendingRemaining={pendingRemaining}
             advanceMonths={advanceMonths}
             pendingDeposit={pendingDeposit}
             submitting={submitting}

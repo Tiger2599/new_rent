@@ -2,20 +2,46 @@ import { NextResponse } from "next/server";
 import { getAllRentPayments } from "@/lib/rent-storage";
 import { addLedgerEntry, getLedgerEntries } from "@/lib/ledger-storage";
 import { getTenantNameMap } from "@/lib/tenant-storage";
-import { paymentTitle } from "@/lib/rent-utils";
+import { groupRentPayments, paymentTitle } from "@/lib/rent-utils";
 import {
-  buildMonthOptions,
   currentMonthKey,
+  endOfMonthKey,
+  formatDateRangeLabel,
   formatMonthLabel,
-  isBeforeMonth,
-  isInMonth,
+  isBeforeDate,
+  isInDateRange,
   previousMonthKey,
+  startOfMonthKey,
+  toMonthKeyFromDate,
 } from "@/lib/month-utils";
 import type { BalanceSheetItem, LedgerEntryInput } from "@/types/ledger";
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function resolveRange(searchParams: URLSearchParams): {
+  from: string;
+  to: string;
+} {
+  const fromParam = searchParams.get("from")?.trim() ?? "";
+  const toParam = searchParams.get("to")?.trim() ?? "";
+  const month = searchParams.get("month") || currentMonthKey();
+
+  if (DATE_RE.test(fromParam) && DATE_RE.test(toParam)) {
+    return fromParam <= toParam
+      ? { from: fromParam, to: toParam }
+      : { from: toParam, to: fromParam };
+  }
+
+  return {
+    from: startOfMonthKey(month),
+    to: endOfMonthKey(month),
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month") || currentMonthKey();
+  const { from, to } = resolveRange(searchParams);
+  const month = toMonthKeyFromDate(from);
 
   const [payments, ledger, tenantName] = await Promise.all([
     getAllRentPayments(),
@@ -26,9 +52,12 @@ export async function GET(request: Request) {
   const allIncome: BalanceSheetItem[] = [];
   const allExpenses: BalanceSheetItem[] = [];
 
-  for (const payment of payments) {
+  for (const payment of groupRentPayments(payments)) {
     const name = tenantName.get(payment.tenantId) ?? "Tenant";
-    const title = paymentTitle(payment);
+    const title = paymentTitle({
+      type: payment.type,
+      rentMonths: payment.rentMonths,
+    });
     const source =
       payment.type === "deposit" || payment.type === "initial_advance"
         ? ("deposit" as const)
@@ -65,37 +94,26 @@ export async function GET(request: Request) {
     }
   }
 
-  const monthOptions = buildMonthOptions([
-    ...allIncome.map((i) => i.date),
-    ...allExpenses.map((e) => e.date),
-  ]);
-
   const prevMonth = previousMonthKey(month);
-  const prevIncome = allIncome
-    .filter((i) => isInMonth(i.date, prevMonth))
-    .reduce((sum, i) => sum + i.amount, 0);
-  const prevExpense = allExpenses
-    .filter((e) => isInMonth(e.date, prevMonth))
-    .reduce((sum, e) => sum + e.amount, 0);
 
-  // Cumulative opening: all activity before selected month
+  // Cumulative opening: all activity before selected range start
   const priorIncome = allIncome
-    .filter((i) => isBeforeMonth(i.date, month))
+    .filter((i) => isBeforeDate(i.date, from))
     .reduce((sum, i) => sum + i.amount, 0);
   const priorExpense = allExpenses
-    .filter((e) => isBeforeMonth(e.date, month))
+    .filter((e) => isBeforeDate(e.date, from))
     .reduce((sum, e) => sum + e.amount, 0);
   const carryForward = priorIncome - priorExpense;
 
-  const income = allIncome.filter((i) => isInMonth(i.date, month));
-  const expenses = allExpenses.filter((e) => isInMonth(e.date, month));
+  const income = allIncome.filter((i) => isInDateRange(i.date, from, to));
+  const expenses = allExpenses.filter((e) => isInDateRange(e.date, from, to));
 
   if (carryForward !== 0) {
     income.unshift({
-      id: `carry-forward-${month}`,
+      id: `carry-forward-${from}`,
       label: `Opening Balance (${formatMonthLabel(prevMonth)})`,
       amount: carryForward,
-      date: `${month}-01`,
+      date: from,
       note: "Previous remaining balance carried forward",
       source: "carry_forward",
     });
@@ -112,16 +130,17 @@ export async function GET(request: Request) {
   const totalExpense = expenses.reduce((sum, i) => sum + i.amount, 0);
 
   return NextResponse.json({
+    from,
+    to,
     month,
+    rangeLabel: formatDateRangeLabel(from, to),
     monthLabel: formatMonthLabel(month),
-    monthOptions,
     income,
     expenses,
     totalIncome,
     totalExpense,
     balance: totalIncome - totalExpense,
     carryForward,
-    previousMonthBalance: prevIncome - prevExpense,
   });
 }
 

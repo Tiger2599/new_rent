@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   getAdvanceMonths,
-  getPaidRentMonths,
+  getFullyPaidMonths,
   getPendingDeposit,
+  getPendingMonthBalances,
   getPendingMonths,
 } from "@/lib/rent-utils";
 import {
   addRentPayment,
-  addRentPayments,
   getRentPaymentsByTenant,
 } from "@/lib/rent-storage";
 import { getTenantById } from "@/lib/tenant-storage";
@@ -26,24 +26,29 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const payments = await getRentPaymentsByTenant(id);
-  const paidMonths = getPaidRentMonths(payments);
-  const pendingMonths = getPendingMonths(
+  const pendingBalances = getPendingMonthBalances(
     tenant.rentStartFrom,
-    paidMonths,
+    payments,
+    tenant.rent,
     tenant.removedAt,
   );
+  const pendingMonths = pendingBalances.map((b) => b.month);
   const advanceMonths = tenant.removedAt
     ? []
-    : getAdvanceMonths(tenant.rentStartFrom, paidMonths);
+    : getAdvanceMonths(tenant.rentStartFrom, payments, tenant.rent);
   const pendingDeposit = getPendingDeposit(
     tenant.deposit,
     tenant.advance ?? 0,
     payments,
   );
+  const pendingRemaining = Object.fromEntries(
+    pendingBalances.map((b) => [b.month, b.remaining]),
+  );
 
   return NextResponse.json({
     payments,
     pendingMonths,
+    pendingRemaining,
     advanceMonths,
     pendingDeposit,
   });
@@ -72,7 +77,7 @@ export async function POST(request: Request, context: RouteContext) {
         .map((m) => m?.trim())
         .filter(Boolean) as string[],
     ),
-  );
+  ).sort();
   const amount = Number(body.amount);
   const receivedDate = body.receivedDate?.trim();
   const note = body.note?.trim() ?? "";
@@ -93,7 +98,6 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const payments = await getRentPaymentsByTenant(id);
-  const paidMonths = getPaidRentMonths(payments);
 
   if (type === "deposit") {
     const pendingDeposit = getPendingDeposit(
@@ -149,11 +153,26 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const pendingMonths = getPendingMonths(tenant.rentStartFrom, paidMonths);
-  const advanceMonths = getAdvanceMonths(tenant.rentStartFrom, paidMonths);
+  const pendingMonths = getPendingMonths(
+    tenant.rentStartFrom,
+    payments,
+    tenant.rent,
+  );
+  const advanceMonths = getAdvanceMonths(
+    tenant.rentStartFrom,
+    payments,
+    tenant.rent,
+  );
   const allowed = type === "rent" ? pendingMonths : advanceMonths;
+  const fullyPaid = new Set(getFullyPaidMonths(payments, tenant.rent));
 
   for (const month of rentMonths) {
+    if (fullyPaid.has(month)) {
+      return NextResponse.json(
+        { error: `Rent for ${month} is already fully received.` },
+        { status: 400 },
+      );
+    }
     if (!allowed.includes(month)) {
       return NextResponse.json(
         {
@@ -167,25 +186,21 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  const base = Math.floor(amount / rentMonths.length);
-  const remainder = amount - base * rentMonths.length;
-  const now = new Date().toISOString();
-
-  const newPayments = rentMonths.map((rentMonth, index) => ({
-    id: crypto.randomUUID(),
-    tenantId: id,
-    type,
-    rentMonth,
-    amount: base + (index === rentMonths.length - 1 ? remainder : 0),
-    receivedDate,
-    note,
-    receivedBy,
-    createdAt: now,
-  }));
-
   try {
-    const saved = await addRentPayments(newPayments);
-    return NextResponse.json({ payments: saved }, { status: 201 });
+    const payment = await addRentPayment({
+      id: crypto.randomUUID(),
+      tenantId: id,
+      type,
+      rentMonth: rentMonths[0],
+      rentMonths,
+      amount,
+      receivedDate,
+      note,
+      receivedBy,
+      createdAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ payment, payments: [payment] }, { status: 201 });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to save rent payment.";

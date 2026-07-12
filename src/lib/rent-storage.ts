@@ -1,4 +1,5 @@
 import { collections, getDb, noId } from "@/lib/mongodb";
+import { getPaymentMonths, groupRentPayments } from "@/lib/rent-utils";
 import type { RentPayment } from "@/types/rent";
 
 export async function getAllRentPayments(): Promise<RentPayment[]> {
@@ -36,40 +37,22 @@ export async function addRentPayments(
   const db = await getDb();
   const col = db.collection<RentPayment>(collections.rentPayments);
 
-  const monthChecks = newPayments.filter(
-    (p) =>
-      (p.type === "rent" || p.type === "advance") && Boolean(p.rentMonth),
-  );
-
-  if (monthChecks.length > 0) {
-    const orFilters = monthChecks.map((p) => ({
+  const monthChecks = newPayments.flatMap((p) => {
+    if (p.type !== "rent" && p.type !== "advance") return [];
+    return getPaymentMonths(p).map((rentMonth) => ({
       tenantId: p.tenantId,
-      rentMonth: p.rentMonth,
-      type: { $in: ["rent", "advance"] as const },
+      rentMonth,
     }));
+  });
 
-    const existing = await col.findOne(
-      { $or: orFilters },
-      { projection: { rentMonth: 1 } },
-    );
-
-    if (existing) {
-      throw new Error(
-        existing.rentMonth
-          ? `Rent for ${existing.rentMonth} is already received.`
-          : "Rent for this month is already received.",
-      );
+  // Soft guard: block only exact duplicate month docs in the same insert batch
+  const seen = new Set<string>();
+  for (const check of monthChecks) {
+    const key = `${check.tenantId}:${check.rentMonth}`;
+    if (seen.has(key)) {
+      throw new Error(`Duplicate month ${check.rentMonth} in the same payment.`);
     }
-
-    // Also guard duplicates within the same batch
-    const seen = new Set<string>();
-    for (const p of monthChecks) {
-      const key = `${p.tenantId}:${p.rentMonth}`;
-      if (seen.has(key)) {
-        throw new Error(`Rent for ${p.rentMonth} is already received.`);
-      }
-      seen.add(key);
-    }
+    seen.add(key);
   }
 
   await col.insertMany(newPayments);
@@ -85,11 +68,22 @@ export async function getRentPaymentById(
     .findOne({ id }, noId);
 }
 
-export async function deleteRentPayment(id: string): Promise<RentPayment | null> {
+export async function deleteRentPayment(
+  id: string,
+): Promise<RentPayment | null> {
   const db = await getDb();
   const col = db.collection<RentPayment>(collections.rentPayments);
   const existing = await col.findOne({ id }, noId);
   if (!existing) return null;
-  await col.deleteOne({ id });
+
+  const tenantPayments = await col
+    .find({ tenantId: existing.tenantId }, noId)
+    .toArray();
+  const group = groupRentPayments(tenantPayments).find((g) =>
+    g.ids.includes(id),
+  );
+  const ids = group?.ids ?? [id];
+
+  await col.deleteMany({ id: { $in: ids } });
   return existing;
 }

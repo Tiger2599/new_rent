@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllRentPayments } from "@/lib/rent-storage";
 import { getActiveTenants } from "@/lib/tenant-storage";
-import {
-  getPaidRentMonths,
-  getPendingMonths,
-} from "@/lib/rent-utils";
+import { getPendingMonthBalances } from "@/lib/rent-utils";
 import { previousMonthKey, currentMonthKey } from "@/lib/month-utils";
 
 export type PendingRentRow = {
@@ -14,6 +11,7 @@ export type PendingRentRow = {
   buildingNumber: string;
   roomNumber: string;
   amount: number;
+  monthlyRent: number;
   rentMonth: string;
 };
 
@@ -51,11 +49,13 @@ export async function GET() {
 
   for (const tenant of tenants) {
     const tenantPayments = paymentsByTenant.get(tenant.id) ?? [];
-    const paidMonths = getPaidRentMonths(tenantPayments);
-    const pendingMonths = getPendingMonths(tenant.rentStartFrom, paidMonths);
-
-    // Previous calendar month only (pichla mahina)
-    if (!pendingMonths.includes(targetMonth)) continue;
+    const pendingBalances = getPendingMonthBalances(
+      tenant.rentStartFrom,
+      tenantPayments,
+      tenant.rent,
+    );
+    const target = pendingBalances.find((b) => b.month === targetMonth);
+    if (!target) continue;
 
     rows.push({
       id: `${tenant.id}-${targetMonth}`,
@@ -63,7 +63,8 @@ export async function GET() {
       tenantName: tenant.name,
       buildingNumber: tenant.buildingNumber,
       roomNumber: tenant.roomNumber,
-      amount: tenant.rent,
+      amount: target.remaining,
+      monthlyRent: tenant.rent,
       rentMonth: targetMonth,
     });
   }

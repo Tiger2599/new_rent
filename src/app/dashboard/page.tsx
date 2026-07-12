@@ -4,19 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import BalanceSheetRow from "@/components/BalanceSheetRow";
 import DashboardLayout from "@/components/DashboardLayout";
+import DateRangePicker from "@/components/DateRangePicker";
 import LedgerForm from "@/components/LedgerForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
 import { formatCurrency } from "@/lib/format";
-import { currentMonthKey, formatMonthLabel } from "@/lib/month-utils";
+import {
+  currentMonthKey,
+  endOfMonthKey,
+  formatDateRangeLabel,
+  startOfMonthKey,
+} from "@/lib/month-utils";
 import type { BalanceSheetItem, LedgerEntryType } from "@/types/ledger";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { notifyError, notifySuccess } = useNotification();
 
-  const [month, setMonth] = useState(currentMonthKey());
-  const [monthOptions, setMonthOptions] = useState<string[]>([currentMonthKey()]);
+  const [from, setFrom] = useState(() => startOfMonthKey(currentMonthKey()));
+  const [to, setTo] = useState(() => endOfMonthKey(currentMonthKey()));
   const [income, setIncome] = useState<BalanceSheetItem[]>([]);
   const [expenses, setExpenses] = useState<BalanceSheetItem[]>([]);
   const [totalIncome, setTotalIncome] = useState(0);
@@ -28,7 +34,7 @@ export default function DashboardPage() {
 
   const loadSheet = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/ledger?month=${month}`);
+    const res = await fetch(`/api/ledger?from=${from}&to=${to}`);
     const data = await res.json();
     setLoading(false);
 
@@ -42,8 +48,7 @@ export default function DashboardPage() {
     setTotalIncome(data.totalIncome ?? 0);
     setTotalExpense(data.totalExpense ?? 0);
     setBalance(data.balance ?? 0);
-    setMonthOptions(data.monthOptions ?? [month]);
-  }, [month, notifyError]);
+  }, [from, to, notifyError]);
 
   useEffect(() => {
     loadSheet();
@@ -89,17 +94,14 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-gray-500">Welcome, {user?.name}</p>
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-800 outline-none focus:border-gray-400"
-              >
-                {monthOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {formatMonthLabel(option)}
-                  </option>
-                ))}
-              </select>
+              <DateRangePicker
+                from={from}
+                to={to}
+                onChange={({ from: nextFrom, to: nextTo }) => {
+                  setFrom(nextFrom);
+                  setTo(nextTo);
+                }}
+              />
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -160,7 +162,7 @@ export default function DashboardPage() {
                   Balance Sheet
                 </h2>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {formatMonthLabel(month)}
+                  {formatDateRangeLabel(from, to)}
                 </p>
               </div>
 

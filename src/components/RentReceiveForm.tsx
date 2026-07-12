@@ -11,6 +11,7 @@ type RentReceiveFormProps = {
   open: boolean;
   defaultRent: number;
   pendingMonths: string[];
+  pendingRemaining?: Record<string, number>;
   advanceMonths: string[];
   pendingDeposit: number;
   submitting: boolean;
@@ -29,6 +30,7 @@ export default function RentReceiveForm({
   open,
   defaultRent,
   pendingMonths,
+  pendingRemaining = {},
   advanceMonths,
   pendingDeposit,
   submitting,
@@ -42,6 +44,14 @@ export default function RentReceiveForm({
   const [amountTouched, setAmountTouched] = useState(false);
   const [receivedDate, setReceivedDate] = useState(todayInputValue());
   const [note, setNote] = useState("");
+
+  function monthAmount(month: string) {
+    return pendingRemaining[month] ?? defaultRent;
+  }
+
+  function totalForMonths(months: string[]) {
+    return months.reduce((sum, month) => sum + monthAmount(month), 0);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +71,7 @@ export default function RentReceiveForm({
     if (preferred === "pending") {
       const initial = pendingMonths[0] ? [pendingMonths[0]] : [];
       setSelectedMonths(initial);
-      setAmount(String(initial.length * defaultRent || defaultRent));
+      setAmount(String(totalForMonths(initial) || defaultRent));
     } else if (preferred === "advance") {
       const initial = advanceMonths[0] ? [advanceMonths[0]] : [];
       setSelectedMonths(initial);
@@ -70,7 +80,8 @@ export default function RentReceiveForm({
       setSelectedMonths([]);
       setAmount(String(pendingDeposit));
     }
-  }, [open, pendingMonths, advanceMonths, pendingDeposit, defaultRent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset from props when form opens
+  }, [open, pendingMonths, advanceMonths, pendingDeposit, defaultRent, pendingRemaining]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,7 +90,7 @@ export default function RentReceiveForm({
       const initial = pendingMonths[0] ? [pendingMonths[0]] : [];
       setSelectedMonths(initial);
       setAmountTouched(false);
-      setAmount(String(initial.length * defaultRent || defaultRent));
+      setAmount(String(totalForMonths(initial) || defaultRent));
     } else if (tab === "advance") {
       const initial = advanceMonths[0] ? [advanceMonths[0]] : [];
       setSelectedMonths(initial);
@@ -90,12 +101,18 @@ export default function RentReceiveForm({
       setAmountTouched(false);
       setAmount(String(pendingDeposit));
     }
-  }, [tab, open, pendingMonths, advanceMonths, pendingDeposit, defaultRent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, open, pendingMonths, advanceMonths, pendingDeposit, defaultRent, pendingRemaining]);
 
   useEffect(() => {
     if (!open || tab === "deposit" || amountTouched) return;
-    setAmount(String(selectedMonths.length * defaultRent));
-  }, [selectedMonths, defaultRent, open, tab, amountTouched]);
+    if (tab === "pending") {
+      setAmount(String(totalForMonths(selectedMonths) || defaultRent));
+      return;
+    }
+    setAmount(String(selectedMonths.length * defaultRent || defaultRent));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonths, defaultRent, open, tab, amountTouched, pendingRemaining]);
 
   if (!open) return null;
 
@@ -198,6 +215,8 @@ export default function RentReceiveForm({
                   <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2">
                     {months.map((month) => {
                       const checked = selectedMonths.includes(month);
+                      const remaining =
+                        tab === "pending" ? monthAmount(month) : defaultRent;
                       return (
                         <label
                           key={month}
@@ -209,7 +228,12 @@ export default function RentReceiveForm({
                             onChange={() => toggleMonth(month)}
                             className="h-4 w-4 rounded border-gray-300"
                           />
-                          {formatRentMonth(month)}
+                          <span className="flex-1">{formatRentMonth(month)}</span>
+                          {tab === "pending" && remaining < defaultRent && (
+                            <span className="text-xs text-amber-700">
+                              Due {remaining}
+                            </span>
+                          )}
                         </label>
                       );
                     })}
@@ -250,7 +274,12 @@ export default function RentReceiveForm({
                   }}
                   className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:bg-white"
                 />
-                {tab !== "deposit" && selectedMonths.length > 1 && (
+                {tab === "pending" && selectedMonths.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Due for selection = {totalForMonths(selectedMonths)}
+                  </p>
+                )}
+                {tab === "advance" && selectedMonths.length > 1 && (
                   <p className="mt-1 text-xs text-gray-500">
                     Auto total = {selectedMonths.length} × {defaultRent}
                   </p>

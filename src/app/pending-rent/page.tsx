@@ -19,6 +19,7 @@ type PendingRentRow = {
   buildingNumber: string;
   roomNumber: string;
   amount: number;
+  monthlyRent: number;
   rentMonth: string;
 };
 
@@ -35,6 +36,9 @@ export default function PendingRentPage() {
   const [selectedTenantName, setSelectedTenantName] = useState("");
   const [defaultRent, setDefaultRent] = useState(0);
   const [pendingMonths, setPendingMonths] = useState<string[]>([]);
+  const [pendingRemaining, setPendingRemaining] = useState<
+    Record<string, number>
+  >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
   const [showRentForm, setShowRentForm] = useState(false);
@@ -76,8 +80,9 @@ export default function PendingRentPage() {
       return;
     }
 
-    setDefaultRent(row.amount);
+    setDefaultRent(row.monthlyRent || row.amount);
     setPendingMonths(data.pendingMonths ?? []);
+    setPendingRemaining(data.pendingRemaining ?? {});
     setAdvanceMonths(data.advanceMonths ?? []);
     setPendingDeposit(data.pendingDeposit ?? 0);
     setShowRentForm(true);
@@ -207,6 +212,7 @@ export default function PendingRentPage() {
           tenantName={selectedTenantName}
           defaultRent={defaultRent}
           pendingMonths={pendingMonths}
+          pendingRemaining={pendingRemaining}
           advanceMonths={advanceMonths}
           pendingDeposit={pendingDeposit}
           submitting={submitting}
