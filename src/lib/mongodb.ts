@@ -130,7 +130,7 @@ export const tenantListProjection = {
     deposit: 1,
     advance: 1,
     rent: 1,
-    rentStartDate: 1,
+    rentStartFrom: 1,
     note: 1,
     createdAt: 1,
     removedAt: 1,

@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "▦" },
   { href: "/tenants", label: "Tenants", icon: "☰" },
+  { href: "/pending-rent", label: "Pending Rent", icon: "₹" },
   { href: "/ledger/income", label: "Extra Income", icon: "＋" },
   { href: "/ledger/expense", label: "Expenses", icon: "−" },
   { href: "/users", label: "Admin Users", icon: "👤" },

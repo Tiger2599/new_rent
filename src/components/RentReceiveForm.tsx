@@ -14,6 +14,7 @@ type RentReceiveFormProps = {
   advanceMonths: string[];
   pendingDeposit: number;
   submitting: boolean;
+  tenantName?: string;
   onClose: () => void;
   onSubmit: (data: {
     type: PaymentType;
@@ -31,6 +32,7 @@ export default function RentReceiveForm({
   advanceMonths,
   pendingDeposit,
   submitting,
+  tenantName,
   onClose,
   onSubmit,
 }: RentReceiveFormProps) {
@@ -149,7 +151,9 @@ export default function RentReceiveForm({
       >
         <h3 className="text-base font-semibold text-gray-900">Receive Payment</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Record rent, advance or pending deposit
+          {tenantName
+            ? `${tenantName} – record rent, advance or pending deposit`
+            : "Record rent, advance or pending deposit"}
         </p>
 
         <div className="mt-4 flex rounded-lg border border-gray-200 bg-gray-50 p-1">
