@@ -8,8 +8,6 @@ import RentReceiveForm from "@/components/RentReceiveForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
 import { formatCurrency } from "@/lib/format";
-import { formatMonthLabel } from "@/lib/month-utils";
-import { formatRentMonth } from "@/lib/rent-utils";
 import type { PaymentType } from "@/types/rent";
 
 type PendingRentRow = {
@@ -20,7 +18,8 @@ type PendingRentRow = {
   roomNumber: string;
   amount: number;
   monthlyRent: number;
-  rentMonth: string;
+  rentMonths: string[];
+  monthsLabel: string;
 };
 
 export default function PendingRentPage() {
@@ -28,8 +27,8 @@ export default function PendingRentPage() {
   const { notifyError, notifySuccess } = useNotification();
 
   const [items, setItems] = useState<PendingRentRow[]>([]);
-  const [month, setMonth] = useState("");
   const [totalAmount, setTotalAmount] = useState(0);
+  const [tenantCount, setTenantCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -57,8 +56,8 @@ export default function PendingRentPage() {
     }
 
     setItems(data.items ?? []);
-    setMonth(data.month ?? "");
     setTotalAmount(data.totalAmount ?? 0);
+    setTenantCount(data.tenantCount ?? 0);
   }, [notifyError]);
 
   useEffect(() => {
@@ -122,6 +121,16 @@ export default function PendingRentPage() {
 
   const columns: Column<PendingRentRow>[] = [
     {
+      key: "amount",
+      label: "Amount",
+      sortable: true,
+      render: (row) => (
+        <span className="font-medium text-gray-900">
+          {formatCurrency(row.amount)}
+        </span>
+      ),
+    },
+    {
       key: "tenantName",
       label: "Tenant",
       sortable: true,
@@ -131,27 +140,22 @@ export default function PendingRentPage() {
     },
     {
       key: "buildingNumber",
-      label: "Building",
-      sortable: true,
-    },
-    {
-      key: "roomNumber",
       label: "Room",
       sortable: true,
+      render: (row) => `${row.buildingNumber}/${row.roomNumber}`,
     },
     {
-      key: "rentMonth",
-      label: "Pending Month",
-      sortable: true,
-      render: (row) => formatRentMonth(row.rentMonth),
-    },
-    {
-      key: "amount",
-      label: "Amount",
+      key: "monthsLabel",
+      label: "Pending Months",
       sortable: true,
       render: (row) => (
-        <span className="font-medium text-gray-900">
-          {formatCurrency(row.amount)}
+        <span>
+          {row.monthsLabel}
+          {row.rentMonths.length > 1 ? (
+            <span className="ml-1 text-xs text-gray-400">
+              ({row.rentMonths.length})
+            </span>
+          ) : null}
         </span>
       ),
     },
@@ -163,17 +167,16 @@ export default function PendingRentPage() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-gray-400">
-              Previous month
+              Total pending amount
             </p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">
-              {month ? formatMonthLabel(month) : "—"}
+            <p className="mt-1 text-2xl font-bold text-gray-900">
+              {loading ? "…" : formatCurrency(totalAmount)}
             </p>
-            <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-              <span className="text-gray-500">
-                {loading ? "Loading..." : `${items.length} pending`}
-              </span>
-              <span className="font-semibold text-gray-900">
-                {formatCurrency(totalAmount)}
+            <div className="mt-3 flex items-center justify-between gap-3 text-sm text-gray-500">
+              <span>
+                {loading
+                  ? "Loading..."
+                  : `${tenantCount} tenant${tenantCount === 1 ? "" : "s"} pending`}
               </span>
             </div>
           </div>
@@ -190,9 +193,9 @@ export default function PendingRentPage() {
                 "tenantName",
                 "buildingNumber",
                 "roomNumber",
-                "rentMonth",
+                "monthsLabel",
               ]}
-              emptyMessage="No pending rent for previous month."
+              emptyMessage="No pending rent."
               pageSize={12}
               onRowClick={(row) => {
                 if (!loadingRent) void openReceive(row);

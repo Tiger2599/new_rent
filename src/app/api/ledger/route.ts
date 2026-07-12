@@ -8,9 +8,7 @@ import {
   endOfMonthKey,
   formatDateRangeLabel,
   formatMonthLabel,
-  isBeforeDate,
   isInDateRange,
-  previousMonthKey,
   startOfMonthKey,
   toMonthKeyFromDate,
 } from "@/lib/month-utils";
@@ -94,37 +92,12 @@ export async function GET(request: Request) {
     }
   }
 
-  const prevMonth = previousMonthKey(month);
-
-  // Cumulative opening: all activity before selected range start
-  const priorIncome = allIncome
-    .filter((i) => isBeforeDate(i.date, from))
-    .reduce((sum, i) => sum + i.amount, 0);
-  const priorExpense = allExpenses
-    .filter((e) => isBeforeDate(e.date, from))
-    .reduce((sum, e) => sum + e.amount, 0);
-  const carryForward = priorIncome - priorExpense;
-
-  const income = allIncome.filter((i) => isInDateRange(i.date, from, to));
-  const expenses = allExpenses.filter((e) => isInDateRange(e.date, from, to));
-
-  if (carryForward !== 0) {
-    income.unshift({
-      id: `carry-forward-${from}`,
-      label: `Opening Balance (${formatMonthLabel(prevMonth)})`,
-      amount: carryForward,
-      date: from,
-      note: "Previous remaining balance carried forward",
-      source: "carry_forward",
-    });
-  }
-
-  income.sort((a, b) => {
-    if (a.source === "carry_forward") return -1;
-    if (b.source === "carry_forward") return 1;
-    return b.date.localeCompare(a.date);
-  });
-  expenses.sort((a, b) => b.date.localeCompare(a.date));
+  const income = allIncome
+    .filter((i) => isInDateRange(i.date, from, to))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const expenses = allExpenses
+    .filter((e) => isInDateRange(e.date, from, to))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const totalIncome = income.reduce((sum, i) => sum + i.amount, 0);
   const totalExpense = expenses.reduce((sum, i) => sum + i.amount, 0);
@@ -140,7 +113,6 @@ export async function GET(request: Request) {
     totalIncome,
     totalExpense,
     balance: totalIncome - totalExpense,
-    carryForward,
   });
 }
 

@@ -31,7 +31,6 @@ export type BalanceSheetItem = {
     | "deposit"
     | "advance"
     | "extra_income"
-    | "expense"
-    | "carry_forward";
+    | "expense";
   by?: string;
 };

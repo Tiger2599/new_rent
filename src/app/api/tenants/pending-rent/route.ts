@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAllRentPayments } from "@/lib/rent-storage";
 import { getActiveTenants } from "@/lib/tenant-storage";
-import { getPendingMonthBalances } from "@/lib/rent-utils";
-import { previousMonthKey, currentMonthKey } from "@/lib/month-utils";
+import {
+  formatMonthsLabel,
+  getPendingMonthBalances,
+} from "@/lib/rent-utils";
 
 export type PendingRentRow = {
   id: string;
@@ -12,7 +14,8 @@ export type PendingRentRow = {
   roomNumber: string;
   amount: number;
   monthlyRent: number;
-  rentMonth: string;
+  rentMonths: string[];
+  monthsLabel: string;
 };
 
 function compareBuildingRoom(
@@ -31,8 +34,6 @@ function compareBuildingRoom(
 }
 
 export async function GET() {
-  const targetMonth = previousMonthKey(currentMonthKey());
-
   const [tenants, payments] = await Promise.all([
     getActiveTenants(),
     getAllRentPayments(),
@@ -54,18 +55,21 @@ export async function GET() {
       tenantPayments,
       tenant.rent,
     );
-    const target = pendingBalances.find((b) => b.month === targetMonth);
-    if (!target) continue;
+    if (pendingBalances.length === 0) continue;
+
+    const rentMonths = pendingBalances.map((b) => b.month);
+    const amount = pendingBalances.reduce((sum, b) => sum + b.remaining, 0);
 
     rows.push({
-      id: `${tenant.id}-${targetMonth}`,
+      id: tenant.id,
       tenantId: tenant.id,
       tenantName: tenant.name,
       buildingNumber: tenant.buildingNumber,
       roomNumber: tenant.roomNumber,
-      amount: target.remaining,
+      amount,
       monthlyRent: tenant.rent,
-      rentMonth: targetMonth,
+      rentMonths,
+      monthsLabel: formatMonthsLabel(rentMonths),
     });
   }
 
@@ -76,9 +80,9 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    month: targetMonth,
     items: rows,
     totalAmount: rows.reduce((sum, row) => sum + row.amount, 0),
     count: rows.length,
+    tenantCount: rows.length,
   });
 }
