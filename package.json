@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 5000",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0 --port 5000",
+    "start": "next start",
     "lint": "eslint",
     "db:migrate": "node --env-file=.env.local scripts/migrate-json-to-mongo.mjs",
     "db:clean": "node --env-file=.env.local scripts/clean-db.mjs",
