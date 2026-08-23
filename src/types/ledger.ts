@@ -2,6 +2,7 @@ export type LedgerEntryType = "extra_income" | "expense";
 
 export type LedgerEntry = {
   id: string;
+  ownerId: string;
   type: LedgerEntryType;
   title: string;
   amount: number;
@@ -33,4 +34,6 @@ export type BalanceSheetItem = {
     | "extra_income"
     | "expense";
   by?: string;
+  electricityUnits?: number;
+  electricityCharge?: number;
 };

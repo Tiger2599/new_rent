@@ -24,6 +24,13 @@ export default function BalanceSheetRow({
     item.label,
     `Date: ${formatDate(item.date)}`,
     item.by ? `By: ${item.by}` : null,
+    item.electricityUnits
+      ? `Electricity: ${item.electricityUnits} units${
+          item.electricityCharge
+            ? ` · ${formatCurrency(item.electricityCharge)}`
+            : ""
+        }`
+      : null,
     item.note ? `Note: ${item.note}` : null,
     `Type: ${item.source.replace(/_/g, " ")}`,
   ]

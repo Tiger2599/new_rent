@@ -28,6 +28,8 @@ export default function DashboardPage() {
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
   const [balance, setBalance] = useState(0);
+  const [electricityUnits, setElectricityUnits] = useState(0);
+  const [electricityAmount, setElectricityAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [formType, setFormType] = useState<LedgerEntryType | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +50,8 @@ export default function DashboardPage() {
     setTotalIncome(data.totalIncome ?? 0);
     setTotalExpense(data.totalExpense ?? 0);
     setBalance(data.balance ?? 0);
+    setElectricityUnits(data.electricityUnits ?? 0);
+    setElectricityAmount(data.electricityAmount ?? 0);
   }, [from, to, notifyError]);
 
   useEffect(() => {
@@ -134,6 +138,20 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+
+            {(electricityUnits > 0 || electricityAmount > 0) && (
+              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-amber-800">
+                  Electricity
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-amber-950">
+                  {electricityUnits} units
+                  {electricityAmount > 0
+                    ? ` · ${formatCurrency(electricityAmount)}`
+                    : ""}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

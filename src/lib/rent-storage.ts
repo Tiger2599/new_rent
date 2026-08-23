@@ -2,22 +2,25 @@ import { collections, getDb, noId } from "@/lib/mongodb";
 import { getPaymentMonths, groupRentPayments } from "@/lib/rent-utils";
 import type { RentPayment } from "@/types/rent";
 
-export async function getAllRentPayments(): Promise<RentPayment[]> {
+export async function getAllRentPayments(
+  ownerId: string,
+): Promise<RentPayment[]> {
   const db = await getDb();
   return db
     .collection<RentPayment>(collections.rentPayments)
-    .find({}, noId)
+    .find({ ownerId }, noId)
     .sort({ receivedDate: -1, createdAt: -1 })
     .toArray();
 }
 
 export async function getRentPaymentsByTenant(
   tenantId: string,
+  ownerId: string,
 ): Promise<RentPayment[]> {
   const db = await getDb();
   return db
     .collection<RentPayment>(collections.rentPayments)
-    .find({ tenantId }, noId)
+    .find({ tenantId, ownerId }, noId)
     .sort({ receivedDate: -1, createdAt: -1 })
     .toArray();
 }
@@ -45,7 +48,6 @@ export async function addRentPayments(
     }));
   });
 
-  // Soft guard: block only exact duplicate month docs in the same insert batch
   const seen = new Set<string>();
   for (const check of monthChecks) {
     const key = `${check.tenantId}:${check.rentMonth}`;
@@ -61,29 +63,31 @@ export async function addRentPayments(
 
 export async function getRentPaymentById(
   id: string,
+  ownerId: string,
 ): Promise<RentPayment | null> {
   const db = await getDb();
   return db
     .collection<RentPayment>(collections.rentPayments)
-    .findOne({ id }, noId);
+    .findOne({ id, ownerId }, noId);
 }
 
 export async function deleteRentPayment(
   id: string,
+  ownerId: string,
 ): Promise<RentPayment | null> {
   const db = await getDb();
   const col = db.collection<RentPayment>(collections.rentPayments);
-  const existing = await col.findOne({ id }, noId);
+  const existing = await col.findOne({ id, ownerId }, noId);
   if (!existing) return null;
 
   const tenantPayments = await col
-    .find({ tenantId: existing.tenantId }, noId)
+    .find({ tenantId: existing.tenantId, ownerId }, noId)
     .toArray();
   const group = groupRentPayments(tenantPayments).find((g) =>
     g.ids.includes(id),
   );
   const ids = group?.ids ?? [id];
 
-  await col.deleteMany({ id: { $in: ids } });
+  await col.deleteMany({ id: { $in: ids }, ownerId });
   return existing;
 }

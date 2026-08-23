@@ -9,6 +9,7 @@ import ImagePreview from "@/components/ImagePreview";
 import RentReceiveForm from "@/components/RentReceiveForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
+import { electricityUnitsConsumed } from "@/lib/electricity";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupRentPayments, paymentTitle } from "@/lib/rent-utils";
 import type { PaymentType, RentPayment } from "@/types/rent";
@@ -29,6 +30,7 @@ export default function TenantDetailsPage() {
   >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
+  const [electricityRate, setElectricityRate] = useState(9);
   const [loading, setLoading] = useState(true);
   const [showRentForm, setShowRentForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +70,7 @@ export default function TenantDetailsPage() {
     setPendingRemaining(rentData.pendingRemaining ?? {});
     setAdvanceMonths(rentData.advanceMonths ?? []);
     setPendingDeposit(rentData.pendingDeposit ?? 0);
+    setElectricityRate(rentData.electricityRate ?? 9);
   }, [params.id, notifyError]);
 
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function TenantDetailsPage() {
     amount: number;
     receivedDate: string;
     note: string;
+    electricityUnits?: number;
   }) {
     setSubmitting(true);
     const res = await fetch(`/api/tenants/${params.id}/rent`, {
@@ -141,6 +145,14 @@ export default function TenantDetailsPage() {
   const advancePaid = tenant?.advance ?? 0;
   const proofs = tenant ? normalizeTenantProofs(tenant) : [];
   const groupedPayments = groupRentPayments(payments);
+  const totalElectricityUnits = groupedPayments.reduce(
+    (sum, payment) => sum + electricityUnitsConsumed(payment),
+    0,
+  );
+  const totalElectricityAmount = groupedPayments.reduce(
+    (sum, payment) => sum + (payment.electricityCharge ?? 0),
+    0,
+  );
   const pendingTotal = pendingMonths.reduce(
     (sum, month) => sum + (pendingRemaining[month] ?? tenant?.rent ?? 0),
     0,
@@ -247,6 +259,12 @@ export default function TenantDetailsPage() {
                   </dd>
                 </div>
                 <div>
+                  <dt className="text-gray-500">Electricity units</dt>
+                  <dd className="mt-0.5 font-medium text-gray-900">
+                    {tenant.electricityUnits ?? 0}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-gray-500">Added On</dt>
                   <dd className="mt-0.5 font-medium text-gray-900">
                     {formatDate(tenant.createdAt)}
@@ -308,6 +326,14 @@ export default function TenantDetailsPage() {
                 <h3 className="text-base font-semibold text-gray-900">
                   Rent History
                 </h3>
+                {totalElectricityUnits > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Electricity: {totalElectricityUnits} units
+                    {totalElectricityAmount > 0
+                      ? ` · ${formatCurrency(totalElectricityAmount)}`
+                      : ""}
+                  </p>
+                )}
               </div>
 
               {groupedPayments.length === 0 ? (
@@ -324,6 +350,7 @@ export default function TenantDetailsPage() {
                             {paymentTitle({
                               type: payment.type,
                               rentMonths: payment.rentMonths,
+                              electricityCharge: payment.electricityCharge,
                             })}
                           </p>
                           <p className="mt-0.5 text-xs text-gray-500">
@@ -332,6 +359,16 @@ export default function TenantDetailsPage() {
                           <p className="mt-0.5 text-xs text-gray-400">
                             by {payment.receivedBy || "Admin"}
                           </p>
+                          {electricityUnitsConsumed(payment) > 0 && (
+                            <p className="mt-1 text-xs text-amber-800">
+                              Units {payment.previousElectricityUnits ?? 0} →{" "}
+                              {payment.electricityUnits} (
+                              {electricityUnitsConsumed(payment)} used)
+                              {payment.electricityCharge
+                                ? ` · ${formatCurrency(payment.electricityCharge)}`
+                                : ""}
+                            </p>
+                          )}
                           {payment.note && (
                             <p className="mt-1 text-xs text-gray-600">
                               {payment.note}
@@ -368,6 +405,8 @@ export default function TenantDetailsPage() {
             pendingRemaining={pendingRemaining}
             advanceMonths={advanceMonths}
             pendingDeposit={pendingDeposit}
+            lastElectricityUnits={tenant.electricityUnits ?? 0}
+            electricityRate={electricityRate}
             submitting={submitting}
             onClose={() => setShowRentForm(false)}
             onSubmit={handleReceiveRent}

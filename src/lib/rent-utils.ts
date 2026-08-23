@@ -69,6 +69,9 @@ export function groupRentPayments(
         note: payment.note,
         receivedBy: payment.receivedBy,
         createdAt: payment.createdAt,
+        previousElectricityUnits: payment.previousElectricityUnits,
+        electricityUnits: payment.electricityUnits,
+        electricityCharge: payment.electricityCharge,
       });
       continue;
     }
@@ -85,6 +88,9 @@ export function groupRentPayments(
         note: payment.note,
         receivedBy: payment.receivedBy,
         createdAt: payment.createdAt,
+        previousElectricityUnits: payment.previousElectricityUnits,
+        electricityUnits: payment.electricityUnits,
+        electricityCharge: payment.electricityCharge,
       });
       continue;
     }
@@ -108,6 +114,9 @@ export function groupRentPayments(
       note: payment.note,
       receivedBy: payment.receivedBy,
       createdAt: payment.createdAt,
+      previousElectricityUnits: payment.previousElectricityUnits,
+      electricityUnits: payment.electricityUnits,
+      electricityCharge: payment.electricityCharge,
     });
   }
 
@@ -128,6 +137,12 @@ export function groupRentPayments(
       note: sorted[0].note,
       receivedBy: sorted[0].receivedBy,
       createdAt: sorted[0].createdAt,
+      previousElectricityUnits: sorted[0].previousElectricityUnits,
+      electricityUnits: sorted[0].electricityUnits,
+      electricityCharge: sorted.reduce(
+        (sum, p) => sum + (p.electricityCharge ?? 0),
+        0,
+      ),
     });
   }
 
@@ -308,6 +323,7 @@ export function paymentTitle(payment: {
   type: string;
   rentMonth?: string;
   rentMonths?: string[];
+  electricityCharge?: number;
 }): string {
   const months = getPaymentMonths(payment);
 
@@ -318,8 +334,13 @@ export function paymentTitle(payment: {
       ? `Advance – ${formatMonthsLabel(months)}`
       : "Advance";
   }
-  if (months.length > 0) return formatMonthsLabel(months);
-  return "Payment";
+  if (months.length > 0) {
+    const base = formatMonthsLabel(months);
+    return payment.electricityCharge
+      ? `${base} + electricity`
+      : base;
+  }
+  return payment.electricityCharge ? "Electricity" : "Payment";
 }
 
 export function remainingForMonths(

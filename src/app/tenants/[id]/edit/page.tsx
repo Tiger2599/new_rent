@@ -25,6 +25,7 @@ export default function EditTenantPage() {
     advance: "",
     rent: "",
     rentStartFrom: "",
+    electricityUnits: "0",
     note: "",
   });
   const [proofs, setProofs] = useState<TenantProof[]>([]);
@@ -57,6 +58,7 @@ export default function EditTenantPage() {
       advance: String(tenant.advance ?? 0),
       rent: String(tenant.rent),
       rentStartFrom: tenant.rentStartFrom.slice(0, 10),
+      electricityUnits: String(tenant.electricityUnits ?? 0),
       note: tenant.note ?? "",
     });
     const normalized = normalizeTenantProofs(tenant);
@@ -88,6 +90,7 @@ export default function EditTenantPage() {
         advance: Number(form.advance || 0),
         rent: Number(form.rent),
         rentStartFrom: form.rentStartFrom,
+        electricityUnits: Number(form.electricityUnits || 0),
         note: form.note,
         proofs,
       }),
@@ -218,6 +221,20 @@ export default function EditTenantPage() {
                 type="date"
                 value={form.rentStartFrom}
                 onChange={(e) => updateField("rentStartFrom", e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:bg-white"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-gray-700">
+                Electricity units
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.electricityUnits}
+                onChange={(e) => updateField("electricityUnits", e.target.value)}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:bg-white"
               />
             </label>

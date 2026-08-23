@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
-import { createUser, getPublicUsers } from "@/lib/users";
+import { requireSession } from "@/lib/session";
+import { createSubUser, getPublicUsers } from "@/lib/users";
 
-export async function GET() {
-  const users = await getPublicUsers();
+export async function GET(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
+  const users = await getPublicUsers(session.ownerId);
   return NextResponse.json({ users });
 }
 
 export async function POST(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const body = (await request.json()) as {
     name?: string;
     email?: string;
@@ -32,11 +39,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await createUser({ name, email, password });
+    const user = await createSubUser({
+      name,
+      email,
+      password,
+      ownerId: session.ownerId,
+    });
     return NextResponse.json({ user }, { status: 201 });
-  } catch (error) {
+  } catch (err) {
     const message =
-      error instanceof Error ? error.message : "Failed to create user.";
+      err instanceof Error ? err.message : "Failed to create user.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

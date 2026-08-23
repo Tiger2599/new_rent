@@ -2,6 +2,7 @@ export type PaymentType = "rent" | "advance" | "deposit" | "initial_advance";
 
 export type RentPayment = {
   id: string;
+  ownerId: string;
   tenantId: string;
   type: PaymentType;
   /** @deprecated Prefer rentMonths; kept for legacy rows / indexes */
@@ -12,6 +13,9 @@ export type RentPayment = {
   note: string;
   receivedBy: string;
   createdAt: string;
+  previousElectricityUnits?: number;
+  electricityUnits?: number;
+  electricityCharge?: number;
 };
 
 export type RentPaymentInput = {
@@ -22,6 +26,7 @@ export type RentPaymentInput = {
   receivedDate: string;
   note: string;
   receivedBy: string;
+  electricityUnits?: number;
 };
 
 export type GroupedRentPayment = {
@@ -35,4 +40,7 @@ export type GroupedRentPayment = {
   note: string;
   receivedBy: string;
   createdAt: string;
+  previousElectricityUnits?: number;
+  electricityUnits?: number;
+  electricityCharge?: number;
 };

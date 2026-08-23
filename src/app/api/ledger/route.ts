@@ -12,6 +12,8 @@ import {
   startOfMonthKey,
   toMonthKeyFromDate,
 } from "@/lib/month-utils";
+import { electricityUnitsConsumed } from "@/lib/electricity";
+import { requireSession } from "@/lib/session";
 import type { BalanceSheetItem, LedgerEntryInput } from "@/types/ledger";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -37,14 +39,17 @@ function resolveRange(searchParams: URLSearchParams): {
 }
 
 export async function GET(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { searchParams } = new URL(request.url);
   const { from, to } = resolveRange(searchParams);
   const month = toMonthKeyFromDate(from);
 
   const [payments, ledger, tenantName] = await Promise.all([
-    getAllRentPayments(),
-    getLedgerEntries(),
-    getTenantNameMap(),
+    getAllRentPayments(session.ownerId),
+    getLedgerEntries(session.ownerId),
+    getTenantNameMap(session.ownerId),
   ]);
 
   const allIncome: BalanceSheetItem[] = [];
@@ -55,7 +60,9 @@ export async function GET(request: Request) {
     const title = paymentTitle({
       type: payment.type,
       rentMonths: payment.rentMonths,
+      electricityCharge: payment.electricityCharge,
     });
+    const unitsUsed = electricityUnitsConsumed(payment);
     const source =
       payment.type === "deposit" || payment.type === "initial_advance"
         ? ("deposit" as const)
@@ -65,12 +72,17 @@ export async function GET(request: Request) {
 
     allIncome.push({
       id: payment.id,
-      label: `${name} – ${title}`,
+      label:
+        unitsUsed > 0
+          ? `${name} – ${title} (${unitsUsed} units)`
+          : `${name} – ${title}`,
       amount: payment.amount,
       date: payment.receivedDate,
       note: payment.note,
       source,
       by: payment.receivedBy,
+      electricityUnits: unitsUsed > 0 ? unitsUsed : undefined,
+      electricityCharge: payment.electricityCharge,
     });
   }
 
@@ -101,6 +113,14 @@ export async function GET(request: Request) {
 
   const totalIncome = income.reduce((sum, i) => sum + i.amount, 0);
   const totalExpense = expenses.reduce((sum, i) => sum + i.amount, 0);
+  const electricityUnits = income.reduce(
+    (sum, i) => sum + (i.electricityUnits ?? 0),
+    0,
+  );
+  const electricityAmount = income.reduce(
+    (sum, i) => sum + (i.electricityCharge ?? 0),
+    0,
+  );
 
   return NextResponse.json({
     from,
@@ -113,17 +133,22 @@ export async function GET(request: Request) {
     totalIncome,
     totalExpense,
     balance: totalIncome - totalExpense,
+    electricityUnits,
+    electricityAmount,
   });
 }
 
 export async function POST(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const body = (await request.json()) as Partial<LedgerEntryInput>;
   const type = body.type;
   const title = body.title?.trim();
   const amount = Number(body.amount);
   const date = body.date?.trim();
   const note = body.note?.trim() ?? "";
-  const createdBy = body.createdBy?.trim() || "Admin";
+  const createdBy = body.createdBy?.trim() || session.name || "Admin";
 
   if (type !== "extra_income" && type !== "expense") {
     return NextResponse.json({ error: "Invalid entry type." }, { status: 400 });
@@ -145,6 +170,7 @@ export async function POST(request: Request) {
 
   const entry = await addLedgerEntry({
     id: crypto.randomUUID(),
+    ownerId: session.ownerId,
     type,
     title,
     amount,

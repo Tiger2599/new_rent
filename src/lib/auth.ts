@@ -1,8 +1,11 @@
+export type UserRole = "owner" | "admin";
+
 export type User = {
   id: number;
   email: string;
   name: string;
-  role?: "admin";
+  role: UserRole;
+  ownerId: string;
 };
 
 /** Persists until user clicks Logout. Survives refresh and browser restart. */
@@ -15,8 +18,11 @@ export function getStoredUser(): User | null {
     const raw = window.localStorage.getItem(AUTH_KEY);
     if (!raw) return null;
     const user = JSON.parse(raw) as User;
-    if (!user?.id || !user?.email) return null;
-    return user;
+    if (!user?.id || !user?.email || !user?.ownerId) return null;
+    return {
+      ...user,
+      role: user.role === "owner" ? "owner" : "admin",
+    };
   } catch {
     return null;
   }
@@ -29,11 +35,22 @@ export function setStoredUser(user: User): void {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role ?? "admin",
+      role: user.role === "owner" ? "owner" : "admin",
+      ownerId: user.ownerId,
     }),
   );
 }
 
 export function clearStoredUser(): void {
   window.localStorage.removeItem(AUTH_KEY);
+}
+
+export function toPublicUser(user: User): User {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role === "owner" ? "owner" : "admin",
+    ownerId: user.ownerId,
+  };
 }

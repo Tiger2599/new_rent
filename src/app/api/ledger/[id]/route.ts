@@ -4,15 +4,19 @@ import {
   getLedgerEntryById,
   updateLedgerEntry,
 } from "@/lib/ledger-storage";
+import { requireSession } from "@/lib/session";
 import type { LedgerEntryInput } from "@/types/ledger";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
-  const entry = await getLedgerEntryById(id);
+  const entry = await getLedgerEntryById(id, session.ownerId);
 
   if (!entry) {
     return NextResponse.json({ error: "Entry not found." }, { status: 404 });
@@ -22,6 +26,9 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
   const body = (await request.json()) as Partial<LedgerEntryInput>;
 
@@ -49,7 +56,7 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  const entry = await updateLedgerEntry(id, {
+  const entry = await updateLedgerEntry(id, session.ownerId, {
     title,
     amount,
     date,
@@ -64,9 +71,12 @@ export async function PUT(request: Request, context: RouteContext) {
   return NextResponse.json({ entry });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
-  const deleted = await deleteLedgerEntry(id);
+  const deleted = await deleteLedgerEntry(id, session.ownerId);
 
   if (!deleted) {
     return NextResponse.json({ error: "Entry not found." }, { status: 404 });

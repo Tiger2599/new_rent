@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Rent App",
+    "slug": "rent-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.rentapp.mobile",
+      "usesCleartextTraffic": true
+    }
+  }
+}

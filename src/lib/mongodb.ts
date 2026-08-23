@@ -43,13 +43,13 @@ async function ensureIndexes(db: Db): Promise<void> {
         collection: collections.tenants,
         specs: [
           { key: { id: 1 }, unique: true, name: "tenants_id_unique" },
-          { key: { removedAt: 1, createdAt: -1 }, name: "tenants_active_list" },
-          { key: { removedAt: -1 }, name: "tenants_old_list" },
-          { key: { name: 1 }, name: "tenants_name" },
-          { key: { mobile: 1 }, name: "tenants_mobile" },
+          { key: { ownerId: 1, removedAt: 1, createdAt: -1 }, name: "tenants_owner_active" },
+          { key: { ownerId: 1, removedAt: -1 }, name: "tenants_owner_old" },
+          { key: { ownerId: 1, name: 1 }, name: "tenants_owner_name" },
+          { key: { ownerId: 1, mobile: 1 }, name: "tenants_owner_mobile" },
           {
-            key: { buildingNumber: 1, roomNumber: 1 },
-            name: "tenants_building_room",
+            key: { ownerId: 1, buildingNumber: 1, roomNumber: 1 },
+            name: "tenants_owner_building_room",
           },
         ],
       },
@@ -58,22 +58,22 @@ async function ensureIndexes(db: Db): Promise<void> {
         specs: [
           { key: { id: 1 }, unique: true, name: "rent_id_unique" },
           {
-            key: { tenantId: 1, receivedDate: -1, createdAt: -1 },
-            name: "rent_by_tenant",
+            key: { ownerId: 1, tenantId: 1, receivedDate: -1, createdAt: -1 },
+            name: "rent_owner_tenant",
           },
           {
             key: { tenantId: 1, rentMonth: 1, type: 1 },
             name: "rent_month_type",
           },
-          { key: { receivedDate: -1, createdAt: -1 }, name: "rent_by_date" },
+          { key: { ownerId: 1, receivedDate: -1, createdAt: -1 }, name: "rent_owner_date" },
         ],
       },
       {
         collection: collections.ledger,
         specs: [
           { key: { id: 1 }, unique: true, name: "ledger_id_unique" },
-          { key: { date: -1, createdAt: -1 }, name: "ledger_by_date" },
-          { key: { type: 1, date: -1 }, name: "ledger_by_type" },
+          { key: { ownerId: 1, date: -1, createdAt: -1 }, name: "ledger_owner_date" },
+          { key: { ownerId: 1, type: 1, date: -1 }, name: "ledger_owner_type" },
         ],
       },
       {
@@ -81,6 +81,13 @@ async function ensureIndexes(db: Db): Promise<void> {
         specs: [
           { key: { id: 1 }, unique: true, name: "users_id_unique" },
           { key: { email: 1 }, unique: true, name: "users_email_unique" },
+          { key: { ownerId: 1, id: 1 }, name: "users_by_owner" },
+        ],
+      },
+      {
+        collection: collections.settings,
+        specs: [
+          { key: { ownerId: 1 }, unique: true, name: "settings_owner_unique" },
         ],
       },
     ];
@@ -114,6 +121,7 @@ export const collections = {
   tenants: "tenants",
   rentPayments: "rent_payments",
   ledger: "ledger",
+  settings: "settings",
 } as const;
 
 export const noId = { projection: { _id: 0 } } as const;
@@ -123,6 +131,7 @@ export const tenantListProjection = {
   projection: {
     _id: 0,
     id: 1,
+    ownerId: 1,
     name: 1,
     mobile: 1,
     buildingNumber: 1,
@@ -131,6 +140,7 @@ export const tenantListProjection = {
     advance: 1,
     rent: 1,
     rentStartFrom: 1,
+    electricityUnits: 1,
     note: 1,
     createdAt: 1,
     removedAt: 1,
@@ -138,5 +148,5 @@ export const tenantListProjection = {
 } as const;
 
 export const tenantNameProjection = {
-  projection: { _id: 0, id: 1, name: 1 },
+  projection: { _id: 0, id: 1, ownerId: 1, name: 1 },
 } as const;

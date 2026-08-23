@@ -40,6 +40,8 @@ export default function PendingRentPage() {
   >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
+  const [lastElectricityUnits, setLastElectricityUnits] = useState(0);
+  const [electricityRate, setElectricityRate] = useState(9);
   const [showRentForm, setShowRentForm] = useState(false);
   const [loadingRent, setLoadingRent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +86,8 @@ export default function PendingRentPage() {
     setPendingRemaining(data.pendingRemaining ?? {});
     setAdvanceMonths(data.advanceMonths ?? []);
     setPendingDeposit(data.pendingDeposit ?? 0);
+    setLastElectricityUnits(data.lastElectricityUnits ?? 0);
+    setElectricityRate(data.electricityRate ?? 9);
     setShowRentForm(true);
   }
 
@@ -93,6 +97,7 @@ export default function PendingRentPage() {
     amount: number;
     receivedDate: string;
     note: string;
+    electricityUnits?: number;
   }) {
     if (!selectedTenantId) return;
 
@@ -218,6 +223,8 @@ export default function PendingRentPage() {
           pendingRemaining={pendingRemaining}
           advanceMonths={advanceMonths}
           pendingDeposit={pendingDeposit}
+          lastElectricityUnits={lastElectricityUnits}
+          electricityRate={electricityRate}
           submitting={submitting}
           onClose={() => {
             setShowRentForm(false);

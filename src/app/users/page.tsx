@@ -54,7 +54,7 @@ export default function AdminUsersPage() {
       return;
     }
 
-    notifySuccess("Admin user created successfully.");
+    notifySuccess("Team member created.");
     setName("");
     setEmail("");
     setPassword("");
@@ -67,8 +67,8 @@ export default function AdminUsersPage() {
       return;
     }
 
-    if (users.length <= 1) {
-      notifyError("Cannot delete the last admin user.");
+    if (target.role === "owner") {
+      notifyError("Cannot delete the owner account.");
       return;
     }
 
@@ -82,13 +82,13 @@ export default function AdminUsersPage() {
       return;
     }
 
-    notifySuccess("Admin user deleted.");
+    notifySuccess("Team member deleted.");
     await loadUsers();
   }
 
   return (
     <AuthGuard>
-      <DashboardLayout title="Admin Users" backHref="/dashboard">
+      <DashboardLayout title="Team" backHref="/dashboard">
         <div className="space-y-4">
           <form
             onSubmit={handleSubmit}
@@ -96,10 +96,10 @@ export default function AdminUsersPage() {
           >
             <div>
               <h2 className="text-base font-semibold text-gray-900">
-                Create Admin User
+                Create team member
               </h2>
               <p className="mt-1 text-xs text-gray-500">
-                New users get full access to all features.
+                Sub-users share your tenants and can manage them like you do.
               </p>
             </div>
 
@@ -147,13 +147,13 @@ export default function AdminUsersPage() {
               disabled={submitting}
               className="w-full rounded-lg bg-gray-800 px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-60"
             >
-              {submitting ? "Creating..." : "Create Admin"}
+              {submitting ? "Creating..." : "Create team member"}
             </button>
           </form>
 
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-200 px-4 py-3">
-              <h3 className="text-sm font-semibold text-gray-900">All Admins</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Your team</h3>
             </div>
 
             {loading ? (
@@ -164,6 +164,7 @@ export default function AdminUsersPage() {
               <ul className="divide-y divide-gray-100">
                 {users.map((u) => {
                   const isSelf = user?.id === u.id;
+                  const isOwner = u.role === "owner";
                   return (
                     <li
                       key={u.id}
@@ -180,13 +181,13 @@ export default function AdminUsersPage() {
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500">{u.email}</p>
                         <p className="mt-1 text-[11px] text-gray-400">
-                          Role: Admin
+                          Role: {isOwner ? "Owner" : "Admin"}
                           {u.createdAt ? ` · ${formatDate(u.createdAt)}` : ""}
                         </p>
                       </div>
                       <button
                         type="button"
-                        disabled={isSelf || deletingId === u.id}
+                        disabled={isSelf || isOwner || deletingId === u.id}
                         onClick={() => handleDelete(u)}
                         className="shrink-0 rounded border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                       >

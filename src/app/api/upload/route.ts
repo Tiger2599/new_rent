@@ -3,8 +3,12 @@ import {
   deleteCloudinaryImage,
   uploadImageToCloudinary,
 } from "@/lib/cloudinary";
+import { requireSession } from "@/lib/session";
 
 export async function POST(request: Request) {
+  const { error } = await requireSession(request);
+  if (error) return error;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");
@@ -47,6 +51,9 @@ export async function POST(request: Request) {
 
 /** Delete an image from Cloudinary (used when user removes before save). */
 export async function DELETE(request: Request) {
+  const { error } = await requireSession(request);
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(request.url);
     let publicId = searchParams.get("publicId")?.trim() ?? "";

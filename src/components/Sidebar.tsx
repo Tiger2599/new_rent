@@ -10,7 +10,8 @@ const navItems = [
   { href: "/pending-rent", label: "Pending Rent", icon: "₹" },
   { href: "/ledger/income", label: "Extra Income", icon: "＋" },
   { href: "/ledger/expense", label: "Expenses", icon: "−" },
-  { href: "/users", label: "Admin Users", icon: "👤" },
+  { href: "/users", label: "Team", icon: "👤" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
 export default function Sidebar({
@@ -47,6 +48,9 @@ export default function Sidebar({
             {user?.name}
           </p>
           <p className="text-xs text-gray-500">{user?.email}</p>
+          <p className="mt-1 text-[11px] text-gray-400">
+            {user?.role === "owner" ? "Owner" : "Team member"}
+          </p>
         </div>
 
         <nav className="flex-1 px-3 py-4">

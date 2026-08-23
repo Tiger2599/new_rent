@@ -12,44 +12,50 @@ function withNormalizedProofs(tenant: Tenant | null): Tenant | null {
   if (!tenant) return null;
   return {
     ...tenant,
+    electricityUnits: tenant.electricityUnits ?? 0,
     proofs: normalizeTenantProofs(tenant),
   };
 }
 
-export async function getActiveTenants(): Promise<Tenant[]> {
+export async function getActiveTenants(ownerId: string): Promise<Tenant[]> {
   const db = await getDb();
   const tenants = await db
     .collection<Tenant>(collections.tenants)
-    .find({ removedAt: { $exists: false } }, tenantListProjection)
+    .find({ ownerId, removedAt: { $exists: false } }, tenantListProjection)
     .sort({ createdAt: -1 })
     .toArray();
 
   return tenants.map((t) => withNormalizedProofs(t)!);
 }
 
-export async function getOldTenants(): Promise<Tenant[]> {
+export async function getOldTenants(ownerId: string): Promise<Tenant[]> {
   const db = await getDb();
   const tenants = await db
     .collection<Tenant>(collections.tenants)
-    .find({ removedAt: { $exists: true } }, tenantListProjection)
+    .find({ ownerId, removedAt: { $exists: true } }, tenantListProjection)
     .sort({ removedAt: -1 })
     .toArray();
 
   return tenants.map((t) => withNormalizedProofs(t)!);
 }
 
-/** id → name map for balance sheet (avoids loading full tenant docs) */
-export async function getTenantNameMap(): Promise<Map<string, string>> {
+export async function getTenantNameMap(
+  ownerId: string,
+): Promise<Map<string, string>> {
   const db = await getDb();
   const rows = await db
     .collection<{ id: string; name: string }>(collections.tenants)
-    .find({}, tenantNameProjection)
+    .find({ ownerId }, tenantNameProjection)
     .toArray();
 
   return new Map(rows.map((t) => [t.id, t.name]));
 }
 
-export async function searchTenants(query: string, limit = 12): Promise<Tenant[]> {
+export async function searchTenants(
+  ownerId: string,
+  query: string,
+  limit = 12,
+): Promise<Tenant[]> {
   const q = query.trim();
   if (!q) return [];
 
@@ -61,6 +67,7 @@ export async function searchTenants(query: string, limit = 12): Promise<Tenant[]
     .collection<Tenant>(collections.tenants)
     .find(
       {
+        ownerId,
         $or: [
           { name: regex },
           { mobile: regex },
@@ -72,6 +79,7 @@ export async function searchTenants(query: string, limit = 12): Promise<Tenant[]
         projection: {
           _id: 0,
           id: 1,
+          ownerId: 1,
           name: 1,
           mobile: 1,
           buildingNumber: 1,
@@ -88,11 +96,14 @@ export async function searchTenants(query: string, limit = 12): Promise<Tenant[]
   return tenants;
 }
 
-export async function getTenantById(id: string): Promise<Tenant | null> {
+export async function getTenantById(
+  id: string,
+  ownerId: string,
+): Promise<Tenant | null> {
   const db = await getDb();
   const tenant = await db
     .collection<Tenant>(collections.tenants)
-    .findOne({ id }, noId);
+    .findOne({ id, ownerId }, noId);
   return withNormalizedProofs(tenant);
 }
 
@@ -108,7 +119,8 @@ export async function addTenant(tenant: Tenant): Promise<Tenant> {
 
 export async function updateTenant(
   id: string,
-  patch: Partial<Omit<Tenant, "id" | "createdAt">>,
+  ownerId: string,
+  patch: Partial<Omit<Tenant, "id" | "createdAt" | "ownerId">>,
 ): Promise<Tenant | null> {
   const db = await getDb();
   const col = db.collection<Tenant>(collections.tenants);
@@ -129,7 +141,7 @@ export async function updateTenant(
   if (Object.keys(setDoc).length > 0) update.$set = setDoc;
 
   const result = await col.findOneAndUpdate(
-    { id },
+    { id, ownerId },
     update,
     { returnDocument: "after", projection: noId.projection },
   );
@@ -137,13 +149,16 @@ export async function updateTenant(
   return withNormalizedProofs(result);
 }
 
-export async function removeTenant(id: string): Promise<Tenant | null> {
+export async function removeTenant(
+  id: string,
+  ownerId: string,
+): Promise<Tenant | null> {
   const db = await getDb();
   const tenants = db.collection<Tenant>(collections.tenants);
   const removedAt = new Date().toISOString();
 
   const result = await tenants.findOneAndUpdate(
-    { id, removedAt: { $exists: false } },
+    { id, ownerId, removedAt: { $exists: false } },
     { $set: { removedAt } },
     { returnDocument: "after", projection: noId.projection },
   );

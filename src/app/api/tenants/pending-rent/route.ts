@@ -5,6 +5,7 @@ import {
   formatMonthsLabel,
   getPendingMonthBalances,
 } from "@/lib/rent-utils";
+import { requireSession } from "@/lib/session";
 
 export type PendingRentRow = {
   id: string;
@@ -33,10 +34,13 @@ function compareBuildingRoom(
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const [tenants, payments] = await Promise.all([
-    getActiveTenants(),
-    getAllRentPayments(),
+    getActiveTenants(session.ownerId),
+    getAllRentPayments(session.ownerId),
   ]);
 
   const paymentsByTenant = new Map<string, typeof payments>();

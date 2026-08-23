@@ -5,6 +5,7 @@ export type TenantProof = {
 
 export type Tenant = {
   id: string;
+  ownerId: string;
   name: string;
   mobile: string;
   buildingNumber: string;
@@ -13,6 +14,8 @@ export type Tenant = {
   advance: number;
   rent: number;
   rentStartFrom: string;
+  /** Last recorded meter reading. Defaults to 0. */
+  electricityUnits: number;
   note: string;
   proofs?: TenantProof[];
   /** @deprecated use proofs */
@@ -32,6 +35,7 @@ export type TenantInput = {
   advance: number;
   rent: number;
   rentStartFrom: string;
+  electricityUnits?: number;
   note: string;
   proofs?: TenantProof[];
 };

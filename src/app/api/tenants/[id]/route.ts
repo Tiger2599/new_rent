@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteCloudinaryImage } from "@/lib/cloudinary";
+import { parseElectricityUnits } from "@/lib/electricity";
+import { requireSession } from "@/lib/session";
 import {
   getTenantById,
   removeTenant,
@@ -28,9 +30,12 @@ function parseProofs(input: unknown): TenantProof[] {
     .filter(Boolean) as TenantProof[];
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
-  const tenant = await getTenantById(id);
+  const tenant = await getTenantById(id, session.ownerId);
 
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
@@ -40,8 +45,11 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
-  const existing = await getTenantById(id);
+  const existing = await getTenantById(id, session.ownerId);
 
   if (!existing) {
     return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
@@ -66,6 +74,13 @@ export async function PUT(request: Request, context: RouteContext) {
   const rentStartFrom = body.rentStartFrom?.trim();
   const note = body.note?.trim() ?? "";
   const proofs = parseProofs(body.proofs);
+  const electricity = parseElectricityUnits(
+    body.electricityUnits,
+    existing.electricityUnits ?? 0,
+  );
+  if (electricity.error) {
+    return NextResponse.json({ error: electricity.error }, { status: 400 });
+  }
 
   if (!name || !mobile || !buildingNumber || !roomNumber || !rentStartFrom) {
     return NextResponse.json(
@@ -103,7 +118,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
   }
 
-  const tenant = await updateTenant(id, {
+  const tenant = await updateTenant(id, session.ownerId, {
     name,
     mobile,
     buildingNumber,
@@ -112,6 +127,7 @@ export async function PUT(request: Request, context: RouteContext) {
     advance,
     rent,
     rentStartFrom,
+    electricityUnits: electricity.units,
     note,
     proofs,
   });
@@ -119,9 +135,12 @@ export async function PUT(request: Request, context: RouteContext) {
   return NextResponse.json({ tenant });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const { id } = await context.params;
-  const removed = await removeTenant(id);
+  const removed = await removeTenant(id, session.ownerId);
 
   if (!removed) {
     return NextResponse.json({ error: "Tenant not found." }, { status: 404 });

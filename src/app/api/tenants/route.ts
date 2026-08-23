@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { addRentPayment } from "@/lib/rent-storage";
 import { addTenant, getActiveTenants } from "@/lib/tenant-storage";
+import { requireSession } from "@/lib/session";
+import { parseElectricityUnits } from "@/lib/electricity";
 import type { TenantInput, TenantProof } from "@/types/tenant";
 
 function parseProofs(input: unknown): TenantProof[] {
@@ -16,12 +18,18 @@ function parseProofs(input: unknown): TenantProof[] {
     .filter(Boolean) as TenantProof[];
 }
 
-export async function GET() {
-  const tenants = await getActiveTenants();
+export async function GET(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
+  const tenants = await getActiveTenants(session.ownerId);
   return NextResponse.json({ tenants });
 }
 
 export async function POST(request: Request) {
+  const { session, error } = await requireSession(request);
+  if (error) return error;
+
   const body = (await request.json()) as Partial<TenantInput> & {
     receivedBy?: string;
   };
@@ -36,7 +44,11 @@ export async function POST(request: Request) {
   const rentStartFrom = body.rentStartFrom?.trim();
   const note = body.note?.trim() ?? "";
   const proofs = parseProofs(body.proofs);
-  const receivedBy = body.receivedBy?.trim() || "Admin";
+  const receivedBy = body.receivedBy?.trim() || session.name || "Admin";
+  const electricity = parseElectricityUnits(body.electricityUnits, 0);
+  if (electricity.error) {
+    return NextResponse.json({ error: electricity.error }, { status: 400 });
+  }
 
   if (!name || !mobile || !buildingNumber || !roomNumber || !rentStartFrom) {
     return NextResponse.json(
@@ -69,6 +81,7 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const tenant = await addTenant({
     id: crypto.randomUUID(),
+    ownerId: session.ownerId,
     name,
     mobile,
     buildingNumber,
@@ -77,6 +90,7 @@ export async function POST(request: Request) {
     advance,
     rent,
     rentStartFrom,
+    electricityUnits: electricity.units,
     note,
     proofs,
     createdAt: now,
@@ -85,6 +99,7 @@ export async function POST(request: Request) {
   if (advance > 0) {
     await addRentPayment({
       id: crypto.randomUUID(),
+      ownerId: session.ownerId,
       tenantId: tenant.id,
       type: "initial_advance",
       amount: advance,

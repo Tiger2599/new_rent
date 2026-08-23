@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { DEFAULT_ELECTRICITY_RATE, electricityCharge } from "@/lib/electricity";
 import { formatRentMonth } from "@/lib/rent-utils";
 import { todayInputValue } from "@/lib/format";
 import type { PaymentType } from "@/types/rent";
@@ -14,6 +15,8 @@ type RentReceiveFormProps = {
   pendingRemaining?: Record<string, number>;
   advanceMonths: string[];
   pendingDeposit: number;
+  lastElectricityUnits?: number;
+  electricityRate?: number;
   submitting: boolean;
   tenantName?: string;
   onClose: () => void;
@@ -23,6 +26,7 @@ type RentReceiveFormProps = {
     amount: number;
     receivedDate: string;
     note: string;
+    electricityUnits?: number;
   }) => void;
 };
 
@@ -33,6 +37,8 @@ export default function RentReceiveForm({
   pendingRemaining = {},
   advanceMonths,
   pendingDeposit,
+  lastElectricityUnits = 0,
+  electricityRate = DEFAULT_ELECTRICITY_RATE,
   submitting,
   tenantName,
   onClose,
@@ -44,6 +50,7 @@ export default function RentReceiveForm({
   const [amountTouched, setAmountTouched] = useState(false);
   const [receivedDate, setReceivedDate] = useState(todayInputValue());
   const [note, setNote] = useState("");
+  const [newUnits, setNewUnits] = useState("");
 
   function monthAmount(month: string) {
     return pendingRemaining[month] ?? defaultRent;
@@ -52,6 +59,18 @@ export default function RentReceiveForm({
   function totalForMonths(months: string[]) {
     return months.reduce((sum, month) => sum + monthAmount(month), 0);
   }
+
+  const nextUnits = Number(newUnits);
+  const hasNewUnits =
+    newUnits.trim() !== "" &&
+    Number.isFinite(nextUnits) &&
+    nextUnits > lastElectricityUnits;
+  const extraElectricity =
+    tab === "pending" && hasNewUnits
+      ? electricityCharge(lastElectricityUnits, nextUnits, electricityRate)
+      : 0;
+  const unitsInvalid =
+    tab === "pending" && newUnits.trim() !== "" && !hasNewUnits;
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +86,7 @@ export default function RentReceiveForm({
     setReceivedDate(todayInputValue());
     setNote("");
     setAmountTouched(false);
+    setNewUnits("");
 
     if (preferred === "pending") {
       const initial = pendingMonths[0] ? [pendingMonths[0]] : [];
@@ -81,7 +101,7 @@ export default function RentReceiveForm({
       setAmount(String(pendingDeposit));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset from props when form opens
-  }, [open, pendingMonths, advanceMonths, pendingDeposit, defaultRent, pendingRemaining]);
+  }, [open, pendingMonths, advanceMonths, pendingDeposit, defaultRent, pendingRemaining, lastElectricityUnits]);
 
   useEffect(() => {
     if (!open) return;
@@ -107,12 +127,14 @@ export default function RentReceiveForm({
   useEffect(() => {
     if (!open || tab === "deposit" || amountTouched) return;
     if (tab === "pending") {
-      setAmount(String(totalForMonths(selectedMonths) || defaultRent));
+      setAmount(
+        String((totalForMonths(selectedMonths) || defaultRent) + extraElectricity),
+      );
       return;
     }
     setAmount(String(selectedMonths.length * defaultRent || defaultRent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonths, defaultRent, open, tab, amountTouched, pendingRemaining]);
+  }, [selectedMonths, defaultRent, open, tab, amountTouched, pendingRemaining, extraElectricity]);
 
   if (!open) return null;
 
@@ -145,13 +167,19 @@ export default function RentReceiveForm({
       amount: Number(amount),
       receivedDate,
       note,
+      ...(tab === "pending" && hasNewUnits
+        ? { electricityUnits: nextUnits }
+        : {}),
     });
   }
 
   const canSubmit =
     tab === "deposit"
       ? pendingDeposit > 0 && Number(amount) > 0
-      : months.length > 0 && selectedMonths.length > 0 && Number(amount) > 0;
+      : months.length > 0 &&
+        selectedMonths.length > 0 &&
+        Number(amount) > 0 &&
+        !unitsInvalid;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 sm:items-center">
@@ -247,6 +275,38 @@ export default function RentReceiveForm({
             </>
           )}
 
+          {tab === "pending" && months.length > 0 && (
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-gray-700">
+                Electricity units
+              </span>
+              <input
+                type="number"
+                min={lastElectricityUnits + 1}
+                step="1"
+                value={newUnits}
+                onChange={(e) => setNewUnits(e.target.value)}
+                placeholder={`Last: ${lastElectricityUnits}`}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:bg-white"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Last units: {lastElectricityUnits}. New value must be greater.
+              </p>
+              {unitsInvalid && (
+                <p className="mt-1 text-xs text-red-600">
+                  Units must be greater than {lastElectricityUnits}.
+                </p>
+              )}
+              {hasNewUnits && (
+                <p className="mt-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Difference {nextUnits - lastElectricityUnits} × {electricityRate} ={" "}
+                  <span className="font-semibold">{extraElectricity}</span> added
+                  with rent
+                </p>
+              )}
+            </label>
+          )}
+
           {tab === "deposit" && (
             <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
               Pending deposit:{" "}
@@ -277,6 +337,7 @@ export default function RentReceiveForm({
                 {tab === "pending" && selectedMonths.length > 0 && (
                   <p className="mt-1 text-xs text-gray-500">
                     Due for selection = {totalForMonths(selectedMonths)}
+                    {extraElectricity > 0 ? ` + electricity ${extraElectricity}` : ""}
                   </p>
                 )}
                 {tab === "advance" && selectedMonths.length > 1 && (

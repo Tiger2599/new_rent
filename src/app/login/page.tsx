@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MobileContainer from "@/components/MobileContainer";
 import { useAuth } from "@/context/AuthContext";
@@ -96,6 +97,13 @@ export default function LoginPage() {
           >
             {submitting ? "Signing in..." : "Login"}
           </button>
+
+          <p className="mt-4 text-center text-sm text-gray-500">
+            New owner?{" "}
+            <Link href="/register" className="font-medium text-gray-800 underline">
+              Register
+            </Link>
+          </p>
         </form>
       </div>
     </MobileContainer>
