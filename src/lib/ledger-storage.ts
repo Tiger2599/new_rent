@@ -10,6 +10,24 @@ export async function getLedgerEntries(ownerId: string): Promise<LedgerEntry[]> 
     .toArray();
 }
 
+export async function getLedgerEntriesInRange(
+  ownerId: string,
+  from: string,
+  to: string,
+): Promise<LedgerEntry[]> {
+  const db = await getDb();
+  return db
+    .collection<LedgerEntry>(collections.ledger)
+    .find(
+      {
+        ownerId,
+        date: { $gte: from, $lte: `${to}\uffff` },
+      },
+      noId,
+    )
+    .toArray();
+}
+
 export async function getLedgerEntryById(
   id: string,
   ownerId: string,

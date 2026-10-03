@@ -30,6 +30,10 @@ export default function TenantDetailsPage() {
   >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
+  const [pendingElectricity, setPendingElectricity] = useState<
+    Record<string, number>
+  >({});
+  const [unitsPendingMonths, setUnitsPendingMonths] = useState<string[]>([]);
   const [electricityRate, setElectricityRate] = useState(9);
   const [loading, setLoading] = useState(true);
   const [showRentForm, setShowRentForm] = useState(false);
@@ -40,6 +44,8 @@ export default function TenantDetailsPage() {
   );
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [prevTenantId, setPrevTenantId] = useState<string | null>(null);
+  const [nextTenantId, setNextTenantId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -70,12 +76,48 @@ export default function TenantDetailsPage() {
     setPendingRemaining(rentData.pendingRemaining ?? {});
     setAdvanceMonths(rentData.advanceMonths ?? []);
     setPendingDeposit(rentData.pendingDeposit ?? 0);
+    setPendingElectricity(rentData.pendingElectricity ?? {});
+    setUnitsPendingMonths(rentData.unitsPendingMonths ?? []);
     setElectricityRate(rentData.electricityRate ?? 9);
   }, [params.id, notifyError]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      fetch("/api/tenants").then((res) => res.json()),
+      fetch("/api/tenants/old").then((res) => res.json()),
+    ])
+      .then(([current, old]) => {
+        if (cancelled) return;
+        const currentIds = ((current.tenants ?? []) as { id: string }[]).map(
+          (item) => item.id,
+        );
+        const oldIds = ((old.tenants ?? []) as { id: string }[]).map(
+          (item) => item.id,
+        );
+        const ids = currentIds.includes(params.id) ? currentIds : oldIds;
+        const index = ids.indexOf(params.id);
+        setPrevTenantId(index > 0 ? ids[index - 1] : null);
+        setNextTenantId(
+          index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPrevTenantId(null);
+          setNextTenantId(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   async function handleReceiveRent(data: {
     type: PaymentType;
@@ -84,6 +126,8 @@ export default function TenantDetailsPage() {
     receivedDate: string;
     note: string;
     electricityUnits?: number;
+    unitsOnly?: boolean;
+    collectBoth?: boolean;
   }) {
     setSubmitting(true);
     const res = await fetch(`/api/tenants/${params.id}/rent`, {
@@ -102,7 +146,13 @@ export default function TenantDetailsPage() {
       return;
     }
 
-    notifySuccess("Payment saved successfully.");
+    notifySuccess(
+      data.unitsOnly
+        ? "Units saved. This month stays pending until rent is received."
+        : data.collectBoth === false
+          ? "Rent saved. This month stays pending until units are also received."
+          : "Payment saved successfully.",
+    );
     setShowRentForm(false);
     await loadData();
   }
@@ -163,6 +213,26 @@ export default function TenantDetailsPage() {
       <DashboardLayout
         title="Tenant Details"
         backHref={isOld ? "/tenants?tab=old" : "/tenants"}
+        backActions={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!prevTenantId}
+              onClick={() => prevTenantId && router.push(`/tenants/${prevTenantId}`)}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              disabled={!nextTenantId}
+              onClick={() => nextTenantId && router.push(`/tenants/${nextTenantId}`)}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        }
       >
         {loading ? (
           <p className="text-sm text-gray-500">Loading details...</p>
@@ -403,6 +473,8 @@ export default function TenantDetailsPage() {
             defaultRent={tenant.rent}
             pendingMonths={pendingMonths}
             pendingRemaining={pendingRemaining}
+            pendingElectricity={pendingElectricity}
+            unitsPendingMonths={unitsPendingMonths}
             advanceMonths={advanceMonths}
             pendingDeposit={pendingDeposit}
             lastElectricityUnits={tenant.electricityUnits ?? 0}

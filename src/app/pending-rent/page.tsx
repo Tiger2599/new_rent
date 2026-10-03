@@ -40,6 +40,10 @@ export default function PendingRentPage() {
   >({});
   const [advanceMonths, setAdvanceMonths] = useState<string[]>([]);
   const [pendingDeposit, setPendingDeposit] = useState(0);
+  const [pendingElectricity, setPendingElectricity] = useState<
+    Record<string, number>
+  >({});
+  const [unitsPendingMonths, setUnitsPendingMonths] = useState<string[]>([]);
   const [lastElectricityUnits, setLastElectricityUnits] = useState(0);
   const [electricityRate, setElectricityRate] = useState(9);
   const [showRentForm, setShowRentForm] = useState(false);
@@ -86,6 +90,8 @@ export default function PendingRentPage() {
     setPendingRemaining(data.pendingRemaining ?? {});
     setAdvanceMonths(data.advanceMonths ?? []);
     setPendingDeposit(data.pendingDeposit ?? 0);
+    setPendingElectricity(data.pendingElectricity ?? {});
+    setUnitsPendingMonths(data.unitsPendingMonths ?? []);
     setLastElectricityUnits(data.lastElectricityUnits ?? 0);
     setElectricityRate(data.electricityRate ?? 9);
     setShowRentForm(true);
@@ -98,6 +104,8 @@ export default function PendingRentPage() {
     receivedDate: string;
     note: string;
     electricityUnits?: number;
+    unitsOnly?: boolean;
+    collectBoth?: boolean;
   }) {
     if (!selectedTenantId) return;
 
@@ -118,7 +126,13 @@ export default function PendingRentPage() {
       return;
     }
 
-    notifySuccess("Payment saved successfully.");
+    notifySuccess(
+      payload.unitsOnly
+        ? "Units saved. This month stays pending until rent is received."
+        : payload.collectBoth === false
+          ? "Rent saved. This month stays pending until units are also received."
+          : "Payment saved successfully.",
+    );
     setShowRentForm(false);
     setSelectedTenantId(null);
     await loadList();
@@ -221,6 +235,8 @@ export default function PendingRentPage() {
           defaultRent={defaultRent}
           pendingMonths={pendingMonths}
           pendingRemaining={pendingRemaining}
+          pendingElectricity={pendingElectricity}
+          unitsPendingMonths={unitsPendingMonths}
           advanceMonths={advanceMonths}
           pendingDeposit={pendingDeposit}
           lastElectricityUnits={lastElectricityUnits}

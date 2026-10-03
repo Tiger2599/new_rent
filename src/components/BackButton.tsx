@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export default function BackButton({
   href,
   label = "Back",
+  className = "mb-4",
 }: {
   href?: string;
   label?: string;
+  className?: string;
 }) {
   const router = useRouter();
 
@@ -16,7 +18,7 @@ export default function BackButton({
     return (
       <Link
         href={href}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+        className={`inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 transition hover:text-gray-900 ${className}`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -41,7 +43,7 @@ export default function BackButton({
     <button
       type="button"
       onClick={() => router.back()}
-      className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+      className={`inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 transition hover:text-gray-900 ${className}`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import BalanceSheetRow from "@/components/BalanceSheetRow";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -31,11 +31,12 @@ export default function DashboardPage() {
   const [electricityUnits, setElectricityUnits] = useState(0);
   const [electricityAmount, setElectricityAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const hasSheet = useRef(false);
   const [formType, setFormType] = useState<LedgerEntryType | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const loadSheet = useCallback(async () => {
-    setLoading(true);
+    if (!hasSheet.current) setLoading(true);
     const res = await fetch(`/api/ledger?from=${from}&to=${to}`);
     const data = await res.json();
     setLoading(false);
@@ -52,6 +53,7 @@ export default function DashboardPage() {
     setBalance(data.balance ?? 0);
     setElectricityUnits(data.electricityUnits ?? 0);
     setElectricityAmount(data.electricityAmount ?? 0);
+    hasSheet.current = true;
   }, [from, to, notifyError]);
 
   useEffect(() => {

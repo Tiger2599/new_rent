@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revertElectricityForPayment } from "@/lib/electricity-dues";
 import { deleteRentPayment } from "@/lib/rent-storage";
 import { lastElectricityUnits } from "@/lib/electricity";
 import { requireSession } from "@/lib/session";
@@ -30,9 +31,17 @@ export async function DELETE(request: Request, context: RouteContext) {
     await updateTenant(id, session.ownerId, { advance: nextAdvance });
   }
 
-  if (
+  const reverted = await revertElectricityForPayment(deleted.id, session.ownerId);
+  const meter = lastElectricityUnits(tenant.electricityUnits);
+  if (reverted.created && meter === reverted.created.units) {
+    await updateTenant(id, session.ownerId, {
+      electricityUnits: reverted.created.previousUnits,
+    });
+  } else if (
+    !reverted.created &&
+    reverted.restoredUnpaid === 0 &&
     deleted.electricityUnits !== undefined &&
-    lastElectricityUnits(tenant.electricityUnits) === deleted.electricityUnits
+    meter === deleted.electricityUnits
   ) {
     await updateTenant(id, session.ownerId, {
       electricityUnits: deleted.previousElectricityUnits ?? 0,

@@ -2,6 +2,25 @@ import { collections, getDb, noId } from "@/lib/mongodb";
 import { getPaymentMonths, groupRentPayments } from "@/lib/rent-utils";
 import type { RentPayment } from "@/types/rent";
 
+const balanceSheetPaymentProjection = {
+  projection: {
+    _id: 0,
+    id: 1,
+    tenantId: 1,
+    type: 1,
+    rentMonth: 1,
+    rentMonths: 1,
+    amount: 1,
+    receivedDate: 1,
+    note: 1,
+    receivedBy: 1,
+    createdAt: 1,
+    previousElectricityUnits: 1,
+    electricityUnits: 1,
+    electricityCharge: 1,
+  },
+} as const;
+
 export async function getAllRentPayments(
   ownerId: string,
 ): Promise<RentPayment[]> {
@@ -10,6 +29,24 @@ export async function getAllRentPayments(
     .collection<RentPayment>(collections.rentPayments)
     .find({ ownerId }, noId)
     .sort({ receivedDate: -1, createdAt: -1 })
+    .toArray();
+}
+
+export async function getRentPaymentsInRange(
+  ownerId: string,
+  from: string,
+  to: string,
+): Promise<RentPayment[]> {
+  const db = await getDb();
+  return db
+    .collection<RentPayment>(collections.rentPayments)
+    .find(
+      {
+        ownerId,
+        receivedDate: { $gte: from, $lte: `${to}\uffff` },
+      },
+      balanceSheetPaymentProjection,
+    )
     .toArray();
 }
 

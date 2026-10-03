@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getElectricityDuesByOwner, pendingBalancesWithElectricity } from "@/lib/electricity-dues";
 import { getAllRentPayments } from "@/lib/rent-storage";
 import { getActiveTenants } from "@/lib/tenant-storage";
 import {
@@ -38,9 +39,10 @@ export async function GET(request: Request) {
   const { session, error } = await requireSession(request);
   if (error) return error;
 
-  const [tenants, payments] = await Promise.all([
+  const [tenants, payments, dues] = await Promise.all([
     getActiveTenants(session.ownerId),
     getAllRentPayments(session.ownerId),
+    getElectricityDuesByOwner(session.ownerId),
   ]);
 
   const paymentsByTenant = new Map<string, typeof payments>();
@@ -50,14 +52,20 @@ export async function GET(request: Request) {
     paymentsByTenant.set(payment.tenantId, list);
   }
 
+  const duesByTenant = new Map<string, typeof dues>();
+  for (const due of dues) {
+    const list = duesByTenant.get(due.tenantId) ?? [];
+    list.push(due);
+    duesByTenant.set(due.tenantId, list);
+  }
+
   const rows: PendingRentRow[] = [];
 
   for (const tenant of tenants) {
     const tenantPayments = paymentsByTenant.get(tenant.id) ?? [];
-    const pendingBalances = getPendingMonthBalances(
-      tenant.rentStartFrom,
-      tenantPayments,
-      tenant.rent,
+    const pendingBalances = pendingBalancesWithElectricity(
+      getPendingMonthBalances(tenant.rentStartFrom, tenantPayments, tenant.rent),
+      duesByTenant.get(tenant.id) ?? [],
     );
     if (pendingBalances.length === 0) continue;
 

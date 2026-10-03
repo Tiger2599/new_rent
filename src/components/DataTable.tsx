@@ -65,11 +65,21 @@ export default function DataTable<T extends { id: string }>({
         return sortDir === "asc" ? aVal - bVal : bVal - aVal;
       }
 
-      const aStr = String(aVal ?? "").toLowerCase();
-      const bStr = String(bVal ?? "").toLowerCase();
-      if (aStr < bStr) return sortDir === "asc" ? -1 : 1;
-      if (aStr > bStr) return sortDir === "asc" ? 1 : -1;
-      return 0;
+      const aStr = String(aVal ?? "");
+      const bStr = String(bVal ?? "");
+      const compared = aStr.localeCompare(bStr, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      if (compared !== 0) return sortDir === "asc" ? compared : -compared;
+      const aRoom = String(getValue(a, "roomNumber") ?? "");
+      const bRoom = String(getValue(b, "roomNumber") ?? "");
+      if (!aRoom && !bRoom) return 0;
+      const roomCompared = aRoom.localeCompare(bRoom, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      return sortDir === "asc" ? roomCompared : -roomCompared;
     });
   }, [filtered, sortKey, sortDir]);
 

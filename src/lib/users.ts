@@ -32,7 +32,7 @@ function toPublic(user: UserRecord): PublicUser {
   };
 }
 
-let legacyStampDone = false;
+let legacyBackfillPromise: Promise<void> | null = null;
 
 async function splitSharedOwnerAccounts(
   usersCol: Collection<UserRecord>,
@@ -64,17 +64,12 @@ async function splitSharedOwnerAccounts(
  * Later Register owners keep their own ownerId.
  * If two owners share one ownerId, extras get a new empty workspace.
  */
-export async function backfillLegacyOwners(): Promise<void> {
+async function runLegacyBackfill(): Promise<void> {
   const db = await getDb();
   const usersCol = db.collection<UserRecord>(collections.users);
+  const users = await usersCol.find({}, noId).sort({ id: 1 }).toArray();
 
-  if (!legacyStampDone) {
-    const users = await usersCol.find({}, noId).sort({ id: 1 }).toArray();
-    if (users.length === 0) {
-      legacyStampDone = true;
-      return;
-    }
-
+  if (users.length > 0) {
     const original = users[0];
     const legacyOwnerId = original.ownerId || crypto.randomUUID();
 
@@ -102,11 +97,20 @@ export async function backfillLegacyOwners(): Promise<void> {
         $set: { ownerId: legacyOwnerId },
       }),
     ]);
-
-    legacyStampDone = true;
   }
 
   await splitSharedOwnerAccounts(usersCol);
+}
+
+/** One-time migration. Later requests reuse the finished promise. */
+export function backfillLegacyOwners(): Promise<void> {
+  if (!legacyBackfillPromise) {
+    legacyBackfillPromise = runLegacyBackfill().catch((error) => {
+      legacyBackfillPromise = null;
+      throw error;
+    });
+  }
+  return legacyBackfillPromise;
 }
 
 export async function getPublicUsers(ownerId: string): Promise<PublicUser[]> {

@@ -8,6 +8,21 @@ import {
 import type { Tenant } from "@/types/tenant";
 import { normalizeTenantProofs } from "@/types/tenant";
 
+function compareBuildingRoom(
+  a: { buildingNumber: string; roomNumber: string },
+  b: { buildingNumber: string; roomNumber: string },
+) {
+  const building = a.buildingNumber.localeCompare(b.buildingNumber, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (building !== 0) return building;
+  return a.roomNumber.localeCompare(b.roomNumber, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
 function withNormalizedProofs(tenant: Tenant | null): Tenant | null {
   if (!tenant) return null;
   return {
@@ -22,10 +37,11 @@ export async function getActiveTenants(ownerId: string): Promise<Tenant[]> {
   const tenants = await db
     .collection<Tenant>(collections.tenants)
     .find({ ownerId, removedAt: { $exists: false } }, tenantListProjection)
-    .sort({ createdAt: -1 })
     .toArray();
 
-  return tenants.map((t) => withNormalizedProofs(t)!);
+  return tenants
+    .map((t) => withNormalizedProofs(t)!)
+    .sort(compareBuildingRoom);
 }
 
 export async function getOldTenants(ownerId: string): Promise<Tenant[]> {
@@ -33,10 +49,11 @@ export async function getOldTenants(ownerId: string): Promise<Tenant[]> {
   const tenants = await db
     .collection<Tenant>(collections.tenants)
     .find({ ownerId, removedAt: { $exists: true } }, tenantListProjection)
-    .sort({ removedAt: -1 })
     .toArray();
 
-  return tenants.map((t) => withNormalizedProofs(t)!);
+  return tenants
+    .map((t) => withNormalizedProofs(t)!)
+    .sort(compareBuildingRoom);
 }
 
 export async function getTenantNameMap(
@@ -46,6 +63,21 @@ export async function getTenantNameMap(
   const rows = await db
     .collection<{ id: string; name: string }>(collections.tenants)
     .find({ ownerId }, tenantNameProjection)
+    .toArray();
+
+  return new Map(rows.map((t) => [t.id, t.name]));
+}
+
+export async function getTenantNameMapForIds(
+  ownerId: string,
+  ids: string[],
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+
+  const db = await getDb();
+  const rows = await db
+    .collection<{ id: string; name: string }>(collections.tenants)
+    .find({ ownerId, id: { $in: ids } }, tenantNameProjection)
     .toArray();
 
   return new Map(rows.map((t) => [t.id, t.name]));
@@ -89,11 +121,10 @@ export async function searchTenants(
         },
       },
     )
-    .sort({ name: 1 })
-    .limit(limit)
     .toArray();
 
-  return tenants;
+  tenants.sort(compareBuildingRoom);
+  return tenants.slice(0, limit);
 }
 
 export async function getTenantById(

@@ -70,6 +70,16 @@ export default function TenantsPageContent() {
     },
     { key: "mobile", label: "Mobile", sortable: true },
     {
+      key: "buildingNumber",
+      label: "Room",
+      sortable: true,
+      render: (row) => (
+        <span className="font-medium text-gray-900">
+          B{row.buildingNumber}/R{row.roomNumber}
+        </span>
+      ),
+    },
+    {
       key: "rent",
       label: "Rent",
       sortable: true,
@@ -125,8 +135,8 @@ export default function TenantsPageContent() {
           <DataTable
             title={tab === "current" ? "Current" : "Old"}
             data={tab === "current" ? currentTenants : oldTenants}
-            searchPlaceholder="Filter by name, mobile..."
-            searchKeys={["name", "mobile"]}
+            searchPlaceholder="Filter by name, mobile, room..."
+            searchKeys={["name", "mobile", "buildingNumber", "roomNumber"]}
             emptyMessage={
               tab === "current"
                 ? "No active tenants found."

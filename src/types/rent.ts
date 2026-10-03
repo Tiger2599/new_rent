@@ -27,6 +27,10 @@ export type RentPaymentInput = {
   note: string;
   receivedBy: string;
   electricityUnits?: number;
+  /** Save the meter reading without receiving rent. */
+  unitsOnly?: boolean;
+  /** When receiving rent, also collect electricity. If false, the month stays pending. */
+  collectBoth?: boolean;
 };
 
 export type GroupedRentPayment = {

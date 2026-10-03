@@ -13,6 +13,8 @@ type RentReceiveFormProps = {
   defaultRent: number;
   pendingMonths: string[];
   pendingRemaining?: Record<string, number>;
+  pendingElectricity?: Record<string, number>;
+  unitsPendingMonths?: string[];
   advanceMonths: string[];
   pendingDeposit: number;
   lastElectricityUnits?: number;
@@ -27,6 +29,8 @@ type RentReceiveFormProps = {
     receivedDate: string;
     note: string;
     electricityUnits?: number;
+    unitsOnly?: boolean;
+    collectBoth?: boolean;
   }) => void;
 };
 
@@ -35,6 +39,8 @@ export default function RentReceiveForm({
   defaultRent,
   pendingMonths,
   pendingRemaining = {},
+  pendingElectricity = {},
+  unitsPendingMonths = [],
   advanceMonths,
   pendingDeposit,
   lastElectricityUnits = 0,
@@ -51,9 +57,18 @@ export default function RentReceiveForm({
   const [receivedDate, setReceivedDate] = useState(todayInputValue());
   const [note, setNote] = useState("");
   const [newUnits, setNewUnits] = useState("");
+  const [collectBoth, setCollectBoth] = useState(true);
 
   function monthAmount(month: string) {
     return pendingRemaining[month] ?? defaultRent;
+  }
+
+  function rentOnly(month: string) {
+    return Math.max(0, monthAmount(month) - (pendingElectricity[month] ?? 0));
+  }
+
+  function electricityFor(months: string[]) {
+    return months.reduce((sum, month) => sum + (pendingElectricity[month] ?? 0), 0);
   }
 
   function totalForMonths(months: string[]) {
@@ -87,6 +102,7 @@ export default function RentReceiveForm({
     setNote("");
     setAmountTouched(false);
     setNewUnits("");
+    setCollectBoth(true);
 
     if (preferred === "pending") {
       const initial = pendingMonths[0] ? [pendingMonths[0]] : [];
@@ -127,14 +143,15 @@ export default function RentReceiveForm({
   useEffect(() => {
     if (!open || tab === "deposit" || amountTouched) return;
     if (tab === "pending") {
-      setAmount(
-        String((totalForMonths(selectedMonths) || defaultRent) + extraElectricity),
-      );
+      const stored = collectBoth ? 0 : electricityFor(selectedMonths);
+      const added = collectBoth ? extraElectricity : 0;
+      const base = Math.max(0, totalForMonths(selectedMonths) - stored);
+      setAmount(String(base + added));
       return;
     }
     setAmount(String(selectedMonths.length * defaultRent || defaultRent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonths, defaultRent, open, tab, amountTouched, pendingRemaining, extraElectricity]);
+  }, [selectedMonths, defaultRent, open, tab, amountTouched, pendingRemaining, pendingElectricity, extraElectricity, collectBoth]);
 
   if (!open) return null;
 
@@ -167,9 +184,25 @@ export default function RentReceiveForm({
       amount: Number(amount),
       receivedDate,
       note,
-      ...(tab === "pending" && hasNewUnits
-        ? { electricityUnits: nextUnits }
+      ...(tab === "pending"
+        ? {
+            collectBoth,
+            ...(hasNewUnits ? { electricityUnits: nextUnits } : {}),
+          }
         : {}),
+    });
+  }
+
+  function saveUnitsOnly() {
+    if (selectedMonths.length !== 1 || !hasNewUnits) return;
+    onSubmit({
+      type: "rent",
+      rentMonths: selectedMonths,
+      amount: 0,
+      receivedDate,
+      note,
+      electricityUnits: nextUnits,
+      unitsOnly: true,
     });
   }
 
@@ -257,7 +290,17 @@ export default function RentReceiveForm({
                             className="h-4 w-4 rounded border-gray-300"
                           />
                           <span className="flex-1">{formatRentMonth(month)}</span>
-                          {tab === "pending" && remaining < defaultRent && (
+                          {tab === "pending" && pendingElectricity[month] > 0 && (
+                            <span className="text-xs text-amber-700">
+                              + units {pendingElectricity[month]}
+                            </span>
+                          )}
+                          {tab === "pending" &&
+                            unitsPendingMonths.includes(month) &&
+                            !(pendingElectricity[month] > 0) && (
+                              <span className="text-xs text-amber-700">Units pending</span>
+                            )}
+                          {tab === "pending" && remaining < defaultRent && remaining > 0 && (
                             <span className="text-xs text-amber-700">
                               Due {remaining}
                             </span>
@@ -300,10 +343,38 @@ export default function RentReceiveForm({
               {hasNewUnits && (
                 <p className="mt-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                   Difference {nextUnits - lastElectricityUnits} × {electricityRate} ={" "}
-                  <span className="font-semibold">{extraElectricity}</span> added
-                  with rent
+                  <span className="font-semibold">{extraElectricity}</span>
+                  {collectBoth
+                    ? " added with rent"
+                    : " saved on this month. Rent total will include it later."}
                 </p>
               )}
+              {electricityFor(selectedMonths) > 0 && (
+                <p className="mt-1.5 text-xs text-amber-800">
+                  Saved units on selected months: {electricityFor(selectedMonths)}
+                  {collectBoth ? ". This will be received with rent." : ". Left pending."}
+                </p>
+              )}
+            </label>
+          )}
+
+          {tab === "pending" && months.length > 0 && (
+            <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={collectBoth}
+                onChange={(e) => {
+                  setAmountTouched(false);
+                  setCollectBoth(e.target.checked);
+                }}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              />
+              <span>
+                Receive rent and units together
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  If this is off, the month stays pending until both rent and units are received.
+                </span>
+              </span>
             </label>
           )}
 
@@ -336,8 +407,13 @@ export default function RentReceiveForm({
                 />
                 {tab === "pending" && selectedMonths.length > 0 && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Due for selection = {totalForMonths(selectedMonths)}
-                    {extraElectricity > 0 ? ` + electricity ${extraElectricity}` : ""}
+                    Rent {selectedMonths.reduce((sum, month) => sum + rentOnly(month), 0)}
+                    {collectBoth && electricityFor(selectedMonths) > 0
+                      ? ` + saved units ${electricityFor(selectedMonths)}`
+                      : ""}
+                    {collectBoth && extraElectricity > 0
+                      ? ` + new units ${extraElectricity}`
+                      : ""}
                   </p>
                 )}
                 {tab === "advance" && selectedMonths.length > 1 && (
@@ -379,21 +455,43 @@ export default function RentReceiveForm({
           )}
         </div>
 
-        <div className="mt-5 flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting || !canSubmit}
-            className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-          >
-            {submitting ? "Saving..." : "Save"}
-          </button>
+        <div className="mt-5 flex flex-col gap-2">
+          {tab === "pending" && (
+            <>
+            <button
+              type="button"
+              disabled={
+                submitting ||
+                selectedMonths.length !== 1 ||
+                !hasNewUnits ||
+                unitsInvalid
+              }
+              onClick={saveUnitsOnly}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+            >
+              {submitting ? "Saving..." : "Save units only"}
+            </button>
+            <p className="text-center text-[11px] text-gray-500">
+              Select one month and enter units. Rent is not received. The unit amount is added to that month and collected later with rent.
+            </p>
+            </>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !canSubmit}
+              className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+            >
+              {submitting ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

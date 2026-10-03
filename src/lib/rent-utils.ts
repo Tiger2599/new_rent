@@ -174,7 +174,8 @@ export function getMonthPaidAmounts(
     const months = [...payment.rentMonths].sort();
     if (months.length === 0) continue;
 
-    let leftover = payment.amount;
+    const electricity = payment.electricityCharge ?? 0;
+    let leftover = Math.max(0, payment.amount - electricity);
     for (const month of months) {
       if (leftover <= 0) break;
       const current = paid.get(month) ?? 0;

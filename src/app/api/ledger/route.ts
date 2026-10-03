@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { getAllRentPayments } from "@/lib/rent-storage";
-import { addLedgerEntry, getLedgerEntries } from "@/lib/ledger-storage";
-import { getTenantNameMap } from "@/lib/tenant-storage";
+import { getRentPaymentsInRange } from "@/lib/rent-storage";
+import { addLedgerEntry, getLedgerEntriesInRange } from "@/lib/ledger-storage";
+import { getTenantNameMapForIds } from "@/lib/tenant-storage";
 import { groupRentPayments, paymentTitle } from "@/lib/rent-utils";
 import {
   currentMonthKey,
   endOfMonthKey,
   formatDateRangeLabel,
   formatMonthLabel,
-  isInDateRange,
   startOfMonthKey,
   toMonthKeyFromDate,
 } from "@/lib/month-utils";
@@ -46,10 +45,12 @@ export async function GET(request: Request) {
   const { from, to } = resolveRange(searchParams);
   const month = toMonthKeyFromDate(from);
 
-  const [payments, ledger, tenantName] = await Promise.all([
-    getAllRentPayments(session.ownerId),
-    getLedgerEntries(session.ownerId),
-    getTenantNameMap(session.ownerId),
+  const [payments, ledger] = await Promise.all([
+    getRentPaymentsInRange(session.ownerId, from, to),
+    getLedgerEntriesInRange(session.ownerId, from, to),
+  ]);
+  const tenantName = await getTenantNameMapForIds(session.ownerId, [
+    ...new Set(payments.map((payment) => payment.tenantId)),
   ]);
 
   const allIncome: BalanceSheetItem[] = [];
@@ -104,12 +105,8 @@ export async function GET(request: Request) {
     }
   }
 
-  const income = allIncome
-    .filter((i) => isInDateRange(i.date, from, to))
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const expenses = allExpenses
-    .filter((e) => isInDateRange(e.date, from, to))
-    .sort((a, b) => b.date.localeCompare(a.date));
+  const income = allIncome.sort((a, b) => b.date.localeCompare(a.date));
+  const expenses = allExpenses.sort((a, b) => b.date.localeCompare(a.date));
 
   const totalIncome = income.reduce((sum, i) => sum + i.amount, 0);
   const totalExpense = expenses.reduce((sum, i) => sum + i.amount, 0);

@@ -66,6 +66,7 @@ async function ensureIndexes(db: Db): Promise<void> {
             name: "rent_month_type",
           },
           { key: { ownerId: 1, receivedDate: -1, createdAt: -1 }, name: "rent_owner_date" },
+          { key: { ownerId: 1, receivedDate: 1 }, name: "rent_owner_received_range" },
         ],
       },
       {
@@ -73,6 +74,7 @@ async function ensureIndexes(db: Db): Promise<void> {
         specs: [
           { key: { id: 1 }, unique: true, name: "ledger_id_unique" },
           { key: { ownerId: 1, date: -1, createdAt: -1 }, name: "ledger_owner_date" },
+          { key: { ownerId: 1, date: 1 }, name: "ledger_owner_date_range" },
           { key: { ownerId: 1, type: 1, date: -1 }, name: "ledger_owner_type" },
         ],
       },
@@ -88,6 +90,17 @@ async function ensureIndexes(db: Db): Promise<void> {
         collection: collections.settings,
         specs: [
           { key: { ownerId: 1 }, unique: true, name: "settings_owner_unique" },
+        ],
+      },
+      {
+        collection: collections.electricityDues,
+        specs: [
+          { key: { id: 1 }, unique: true, name: "elec_id_unique" },
+          {
+            key: { ownerId: 1, tenantId: 1, status: 1 },
+            name: "elec_owner_tenant_status",
+          },
+          { key: { ownerId: 1, paymentId: 1 }, name: "elec_owner_payment" },
         ],
       },
     ];
@@ -108,11 +121,7 @@ async function ensureIndexes(db: Db): Promise<void> {
 export async function getDb(): Promise<Db> {
   const connected = await getClientPromise();
   const db = connected.db("rent");
-  if (!global._mongoIndexesReady) {
-    void ensureIndexes(db).catch((err) => {
-      console.error("MongoDB index ensure failed:", err);
-    });
-  }
+  await ensureIndexes(db);
   return db;
 }
 
@@ -122,6 +131,7 @@ export const collections = {
   rentPayments: "rent_payments",
   ledger: "ledger",
   settings: "settings",
+  electricityDues: "electricity_dues",
 } as const;
 
 export const noId = { projection: { _id: 0 } } as const;

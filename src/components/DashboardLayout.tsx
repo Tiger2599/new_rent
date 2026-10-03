@@ -11,11 +11,13 @@ export default function DashboardLayout({
   title,
   showBack = true,
   backHref,
+  backActions,
 }: {
   children: React.ReactNode;
   title: string;
   showBack?: boolean;
   backHref?: string;
+  backActions?: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -52,7 +54,12 @@ export default function DashboardLayout({
       </header>
 
       <main className="flex-1 px-4 py-5">
-        {showBack && <BackButton href={backHref} />}
+        {(showBack || backActions) && (
+          <div className="mb-4 flex items-center justify-between gap-2">
+            {showBack ? <BackButton href={backHref} className="" /> : <span />}
+            {backActions}
+          </div>
+        )}
         {children}
       </main>
     </MobileContainer>
