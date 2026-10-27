@@ -118,10 +118,11 @@ export function NotificationProvider({
     [dismiss],
   );
 
-  const notifyError = useCallback(
-    (message: string) => push("error", message),
-    [push],
-  );
+  const notifyError = useCallback((message: string) => {
+    // AuthGuard already redirects; avoid noisy toast on refresh races.
+    if (message === "Please log in.") return;
+    push("error", message);
+  }, [push]);
 
   const notifySuccess = useCallback(
     (message: string) => push("success", message),

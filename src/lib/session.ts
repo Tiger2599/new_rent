@@ -12,8 +12,9 @@ export type Session = {
 
 export async function getSession(request: Request): Promise<Session | null> {
   await backfillLegacyOwners();
-  const userId = Number(request.headers.get("x-user-id"));
-  if (!Number.isInteger(userId) || userId <= 0) return null;
+  const raw = request.headers.get("x-user-id")?.trim() ?? "";
+  const userId = Number(raw);
+  if (!raw || !Number.isInteger(userId) || userId <= 0) return null;
 
   const user: UserRecord | null = await findUserById(userId);
   if (!user?.ownerId) return null;

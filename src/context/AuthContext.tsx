@@ -15,6 +15,9 @@ import {
   setStoredUser,
   type User,
 } from "@/lib/auth";
+import { ensureAuthFetch } from "@/lib/auth-fetch";
+
+ensureAuthFetch();
 
 type AuthContextValue = {
   user: User | null;
@@ -30,18 +33,13 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function isAuthPublicUrl(url: string) {
-  return (
-    url.includes("/api/auth/login") || url.includes("/api/auth/register")
-  );
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    ensureAuthFetch();
     setUser(getStoredUser());
     setLoading(false);
 
@@ -54,38 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  useEffect(() => {
-    const originalFetch = window.fetch.bind(window);
-
-    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      const stored = getStoredUser();
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      const headers = new Headers(
-        init?.headers ?? (input instanceof Request ? input.headers : undefined),
-      );
-
-      if (stored && url.includes("/api/") && !isAuthPublicUrl(url)) {
-        headers.set("x-user-id", String(stored.id));
-      }
-
-      if (input instanceof Request) {
-        return originalFetch(new Request(input, { ...init, headers }));
-      }
-
-      return originalFetch(input, { ...init, headers });
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
-
   const login = useCallback(async (email: string, password: string) => {
+    ensureAuthFetch();
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -105,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
+      ensureAuthFetch();
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
